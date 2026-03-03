@@ -1,0 +1,145 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Fonts ─── */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("/assets/fonts/BricolageGrotesque[opsz,wdth,wght].woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Outfit";
+  src: url("/assets/fonts/Outfit[wght].woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Fraunces";
+  src: url("/assets/fonts/Fraunces[opsz,SOFT,WONK,ital,wght].woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 0.875rem;
+
+    /* ── Parbin Warm Education Palette ── */
+    /* Background: warm cream */
+    --background: 0.975 0.012 80;
+    --foreground: 0.18 0.04 45;
+
+    /* Cards: warm white */
+    --card: 0.995 0.006 80;
+    --card-foreground: 0.18 0.04 45;
+
+    /* Popover */
+    --popover: 0.995 0.006 80;
+    --popover-foreground: 0.18 0.04 45;
+
+    /* Primary: saffron orange */
+    --primary: 0.68 0.19 50;
+    --primary-foreground: 1 0 0;
+
+    /* Secondary: warm golden yellow */
+    --secondary: 0.92 0.08 80;
+    --secondary-foreground: 0.25 0.06 50;
+
+    /* Muted: soft warm grey */
+    --muted: 0.94 0.018 75;
+    --muted-foreground: 0.5 0.03 55;
+
+    /* Accent: deep turmeric */
+    --accent: 0.82 0.14 75;
+    --accent-foreground: 0.2 0.06 45;
+
+    /* Destructive: red */
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+
+    /* Borders & inputs */
+    --border: 0.88 0.04 75;
+    --input: 0.88 0.04 75;
+    --ring: 0.68 0.19 50;
+
+    /* Charts */
+    --chart-1: 0.68 0.19 50;
+    --chart-2: 0.72 0.17 140;
+    --chart-3: 0.6 0.18 250;
+    --chart-4: 0.82 0.14 75;
+    --chart-5: 0.65 0.22 30;
+
+    /* Sidebar */
+    --sidebar: 0.24 0.05 45;
+    --sidebar-foreground: 0.97 0.01 80;
+    --sidebar-primary: 0.68 0.19 50;
+    --sidebar-primary-foreground: 1 0 0;
+    --sidebar-accent: 0.32 0.06 45;
+    --sidebar-accent-foreground: 0.97 0.01 80;
+    --sidebar-border: 0.32 0.04 45;
+    --sidebar-ring: 0.68 0.19 50;
+
+    /* Custom app tokens */
+    --hero-gradient-from: 0.68 0.19 50;
+    --hero-gradient-to: 0.82 0.14 75;
+    --subject-math: 0.7 0.18 260;
+    --subject-science: 0.65 0.18 145;
+    --subject-english: 0.72 0.16 220;
+    --subject-hindi: 0.72 0.18 30;
+    --subject-social: 0.7 0.16 160;
+    --subject-computer: 0.65 0.2 290;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  .class-card {
+    @apply relative overflow-hidden rounded-2xl cursor-pointer transition-all duration-200;
+    @apply hover:scale-105 hover:shadow-xl active:scale-95;
+  }
+
+  .subject-card {
+    @apply relative overflow-hidden rounded-2xl cursor-pointer transition-all duration-200 p-6;
+    @apply hover:scale-105 hover:shadow-lg active:scale-95;
+  }
+
+  .chat-bubble-user {
+    @apply bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-4 py-2.5 max-w-xs ml-auto;
+  }
+
+  .chat-bubble-ai {
+    @apply bg-card text-foreground rounded-2xl rounded-bl-sm px-4 py-2.5 max-w-xs border border-border shadow-sm;
+  }
+
+  .dot-pattern {
+    background-image: radial-gradient(circle, oklch(var(--border)) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  .grain-overlay::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    border-radius: inherit;
+  }
+}
