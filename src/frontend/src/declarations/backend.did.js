@@ -11,6 +11,7 @@ import { IDL } from '@icp-sdk/core/candid';
 export const Lesson = IDL.Record({
   'title' : IDL.Text,
   'description' : IDL.Text,
+  'pdfUrl' : IDL.Text,
   'notes' : IDL.Text,
   'videoUrl' : IDL.Text,
 });
@@ -19,6 +20,11 @@ export const QuizQuestion = IDL.Record({
   'correctIndex' : IDL.Nat,
   'options' : IDL.Vec(IDL.Text),
 });
+export const UserRole = IDL.Variant({
+  'admin' : IDL.Null,
+  'user' : IDL.Null,
+  'guest' : IDL.Null,
+});
 export const Doubt = IDL.Record({
   'question' : IDL.Text,
   'studentName' : IDL.Text,
@@ -26,13 +32,21 @@ export const Doubt = IDL.Record({
   'answer' : IDL.Opt(IDL.Text),
   'classNum' : IDL.Nat,
 });
+export const UserProfile = IDL.Record({
+  'name' : IDL.Text,
+  'classNum' : IDL.Nat,
+});
 
 export const idlService = IDL.Service({
+  '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'addLesson' : IDL.Func([IDL.Nat, IDL.Text, Lesson], [], []),
   'addQuizQuestion' : IDL.Func([IDL.Nat, IDL.Text, QuizQuestion], [], []),
   'answerDoubt' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+  'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'completeLesson' : IDL.Func([IDL.Nat, IDL.Text, IDL.Text], [], []),
   'getAllDoubts' : IDL.Func([], [IDL.Vec(Doubt)], ['query']),
+  'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+  'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getCompletedLessons' : IDL.Func(
       [],
       [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text, IDL.Text))],
@@ -56,6 +70,13 @@ export const idlService = IDL.Service({
     ),
   'getSubjects' : IDL.Func([IDL.Nat], [IDL.Vec(IDL.Text)], ['query']),
   'getUnansweredDoubts' : IDL.Func([], [IDL.Vec(Doubt)], ['query']),
+  'getUserProfile' : IDL.Func(
+      [IDL.Principal],
+      [IDL.Opt(UserProfile)],
+      ['query'],
+    ),
+  'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+  'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'submitDoubt' : IDL.Func([IDL.Text, IDL.Nat, IDL.Text, IDL.Text], [], []),
   'submitQuizScore' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat], [], []),
 });
@@ -66,6 +87,7 @@ export const idlFactory = ({ IDL }) => {
   const Lesson = IDL.Record({
     'title' : IDL.Text,
     'description' : IDL.Text,
+    'pdfUrl' : IDL.Text,
     'notes' : IDL.Text,
     'videoUrl' : IDL.Text,
   });
@@ -74,6 +96,11 @@ export const idlFactory = ({ IDL }) => {
     'correctIndex' : IDL.Nat,
     'options' : IDL.Vec(IDL.Text),
   });
+  const UserRole = IDL.Variant({
+    'admin' : IDL.Null,
+    'user' : IDL.Null,
+    'guest' : IDL.Null,
+  });
   const Doubt = IDL.Record({
     'question' : IDL.Text,
     'studentName' : IDL.Text,
@@ -81,13 +108,18 @@ export const idlFactory = ({ IDL }) => {
     'answer' : IDL.Opt(IDL.Text),
     'classNum' : IDL.Nat,
   });
+  const UserProfile = IDL.Record({ 'name' : IDL.Text, 'classNum' : IDL.Nat });
   
   return IDL.Service({
+    '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'addLesson' : IDL.Func([IDL.Nat, IDL.Text, Lesson], [], []),
     'addQuizQuestion' : IDL.Func([IDL.Nat, IDL.Text, QuizQuestion], [], []),
     'answerDoubt' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+    'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'completeLesson' : IDL.Func([IDL.Nat, IDL.Text, IDL.Text], [], []),
     'getAllDoubts' : IDL.Func([], [IDL.Vec(Doubt)], ['query']),
+    'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+    'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getCompletedLessons' : IDL.Func(
         [],
         [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text, IDL.Text))],
@@ -111,6 +143,13 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getSubjects' : IDL.Func([IDL.Nat], [IDL.Vec(IDL.Text)], ['query']),
     'getUnansweredDoubts' : IDL.Func([], [IDL.Vec(Doubt)], ['query']),
+    'getUserProfile' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Opt(UserProfile)],
+        ['query'],
+      ),
+    'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+    'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'submitDoubt' : IDL.Func([IDL.Text, IDL.Nat, IDL.Text, IDL.Text], [], []),
     'submitQuizScore' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat], [], []),
   });

@@ -1,43 +1,49 @@
 # Personal Teacher: Parbin
 
 ## Current State
-New project. No existing code.
+
+App already has:
+- Class 1-12 selector on homepage
+- SubjectPage with Lessons, Quiz, Doubts tabs
+- Lessons stored in backend (addLesson / getLessons)
+- Quiz questions stored in backend (addQuizQuestion / getQuizQuestions)
+- Doubt submission and answering via backend
+- Progress tracking (completeLesson, quizScores)
+- Parbin AI chat page
+- User photo as navbar logo
 
 ## Requested Changes (Diff)
 
 ### Add
-- Home page with app branding "Personal Teacher: Parbin"
-- Class selector (Class 1 to 12)
-- Subject listing per class (Maths, Science, English, Hindi, Social Science, etc.)
-- Lessons/Topics list per subject with video lecture placeholders
-- Notes section with downloadable PDF placeholders
-- Quiz & Test feature: multiple choice questions per subject/class
-- Doubt solving: students can submit a question and get a sample answer
-- Progress tracking: tracks which lessons/quizzes completed per student session
-- AI Personal Teacher chat interface (simulated responses based on subject/class context)
-- Navigation: Home, Classes, Quiz, Doubts, Progress
+- Admin Content Management System (CMS) page at `/admin`
+- Admin login via Internet Identity (authorization component)
+- Admin can add new lessons: title, description, YouTube video URL, notes text
+- Admin can add PDF notes link to a lesson (as a URL field)
+- Admin can add quiz questions: question text, 4 options, correct answer index
+- Admin can answer pending student doubts from the CMS
+- Admin can view all lessons and quiz questions per class/subject
+- Backend: add `pdfUrl` field to Lesson type
+- Backend: admin-only guards on addLesson, addQuizQuestion, answerDoubt
 
 ### Modify
-- None (new project)
+- SubjectPage Lesson card: if `pdfUrl` is present, show a "PDF Notes Download" button
+- Backend `Lesson` type: add `pdfUrl: Text` field
+- `addLesson` and `getLessons` to handle `pdfUrl`
 
 ### Remove
-- None (new project)
+- Nothing removed
 
 ## Implementation Plan
 
-**Backend (Motoko):**
-- Store student progress: lessons completed, quiz scores
-- Store doubts submitted by students with responses
-- Store quiz questions per class/subject
-- Store subjects and lessons per class
-- APIs: getClasses, getSubjects(class), getLessons(class, subject), getQuizQuestions(class, subject), submitDoubt, getDoubts, updateProgress, getProgress
-
-**Frontend (React):**
-- Landing/home page with class selector grid (1-12)
-- Subject page for selected class
-- Lesson viewer page with video placeholder and notes
-- Quiz page with MCQ questions, score tracking
-- Doubt submission form and answers list
-- Progress dashboard showing completed lessons and quiz scores
-- AI Chat page: simple chat UI with pre-defined educational responses
-- Responsive mobile-first layout suitable for Indian students
+1. Update backend: add `pdfUrl` to `Lesson` type, regenerate backend.d.ts
+2. Select `authorization` component for admin login
+3. Generate new Motoko backend with updated Lesson type and admin-role checks
+4. Create `/admin` route in App.tsx
+5. Build AdminPage with:
+   - Login button (Internet Identity)
+   - Class + Subject selector
+   - Lesson form (title, description, videoUrl, pdfUrl, notes) + lesson list
+   - Quiz question form (question, 4 options, correct index) + question list
+   - Doubts tab: show unanswered doubts with answer input field
+6. Update SubjectPage LessonCard to show PDF download button when pdfUrl present
+7. Add "Admin" link in NavBar (visible to all, auth enforced on page)

@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronUp,
+  FileText,
   Loader2,
   MessageSquare,
   PlayCircle,
@@ -38,6 +39,7 @@ const FALLBACK_LESSONS: Lesson[] = [
     notes:
       "📝 Key Points:\n• Sabse pehle fundamentals yaad karein\n• Practice problems zaroor karo\n• Notes ko bar bar review karo\n• Teacher se doubt poochne mein dar mat lagao",
     videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    pdfUrl: "",
   },
   {
     title: "Chapter 2 — Core Concepts",
@@ -46,6 +48,7 @@ const FALLBACK_LESSONS: Lesson[] = [
     notes:
       "📝 Important Topics:\n• Topic A: Definition aur explanation\n• Topic B: Real-world examples\n• Topic C: Practice exercises\n• Revision tips aur mnemonics",
     videoUrl: "",
+    pdfUrl: "",
   },
   {
     title: "Chapter 3 — Advanced Topics",
@@ -54,6 +57,7 @@ const FALLBACK_LESSONS: Lesson[] = [
     notes:
       "📝 Exam Tips:\n• Important formulas yaad karein\n• Previous year questions practice karein\n• Diagrams banao\n• Time management sikhein",
     videoUrl: "",
+    pdfUrl: "",
   },
 ];
 
@@ -186,27 +190,42 @@ function LessonCard({
           </div>
         )}
 
-        <Button
-          size="sm"
-          data-ocid={`lesson.complete.button.${index + 1}`}
-          disabled={isCompleted}
-          onClick={() => onComplete(lesson.title)}
-          className={`w-full rounded-xl font-semibold ${
-            isCompleted
-              ? "bg-green-100 text-green-700 border border-green-200 hover:bg-green-100"
-              : ""
-          }`}
-          variant={isCompleted ? "outline" : "default"}
-        >
-          {isCompleted ? (
-            <>
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              Completed! ✅
-            </>
-          ) : (
-            "Mark as Complete ✓"
+        <div className="flex gap-2">
+          {lesson.pdfUrl && (
+            <Button
+              size="sm"
+              variant="outline"
+              data-ocid={`lesson.pdf.button.${index + 1}`}
+              onClick={() => window.open(lesson.pdfUrl, "_blank")}
+              className="flex-shrink-0 rounded-xl font-semibold border-2 border-primary/30 text-primary hover:bg-primary/10"
+            >
+              <FileText className="w-4 h-4 mr-1.5" />
+              PDF Notes
+            </Button>
           )}
-        </Button>
+
+          <Button
+            size="sm"
+            data-ocid={`lesson.complete.button.${index + 1}`}
+            disabled={isCompleted}
+            onClick={() => onComplete(lesson.title)}
+            className={`flex-1 rounded-xl font-semibold ${
+              isCompleted
+                ? "bg-green-100 text-green-700 border border-green-200 hover:bg-green-100"
+                : ""
+            }`}
+            variant={isCompleted ? "outline" : "default"}
+          >
+            {isCompleted ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                Completed! ✅
+              </>
+            ) : (
+              "Mark as Complete ✓"
+            )}
+          </Button>
+        </div>
       </div>
     </motion.div>
   );

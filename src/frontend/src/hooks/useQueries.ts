@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Doubt, Lesson, QuizQuestion } from "../backend.d";
 import { useActor } from "./useActor";
+import { useInternetIdentity } from "./useInternetIdentity";
 
 export function useGetSubjects(classNum: number) {
   const { actor, isFetching } = useActor();
@@ -145,6 +146,116 @@ export function useSubmitQuizScore() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quizScores"] });
+    },
+  });
+}
+
+// ─── Admin Queries & Mutations ─────────────────────────────────────────────────
+
+export function useIsAdmin() {
+  const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
+  return useQuery<boolean>({
+    queryKey: ["isAdmin", identity?.getPrincipal().toString()],
+    queryFn: async () => {
+      if (!actor) return false;
+      return actor.isCallerAdmin();
+    },
+    enabled: !!actor && !isFetching && !!identity,
+  });
+}
+
+export function useGetAllDoubts() {
+  const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
+  return useQuery<Doubt[]>({
+    queryKey: ["allDoubts", identity?.getPrincipal().toString()],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getAllDoubts();
+    },
+    enabled: !!actor && !isFetching && !!identity,
+  });
+}
+
+export function useGetUnansweredDoubts() {
+  const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
+  return useQuery<Doubt[]>({
+    queryKey: ["unansweredDoubts", identity?.getPrincipal().toString()],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getUnansweredDoubts();
+    },
+    enabled: !!actor && !isFetching && !!identity,
+  });
+}
+
+export function useAddLesson() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      classNum,
+      subject,
+      lesson,
+    }: {
+      classNum: number;
+      subject: string;
+      lesson: Lesson;
+    }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.addLesson(BigInt(classNum), subject, lesson);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["lessons", variables.classNum, variables.subject],
+      });
+    },
+  });
+}
+
+export function useAddQuizQuestion() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      classNum,
+      subject,
+      question,
+    }: {
+      classNum: number;
+      subject: string;
+      question: QuizQuestion;
+    }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.addQuizQuestion(BigInt(classNum), subject, question);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["quiz", variables.classNum, variables.subject],
+      });
+    },
+  });
+}
+
+export function useAnswerDoubt() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      index,
+      answer,
+    }: {
+      index: number;
+      answer: string;
+    }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.answerDoubt(BigInt(index), answer);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allDoubts"] });
+      queryClient.invalidateQueries({ queryKey: ["unansweredDoubts"] });
     },
   });
 }

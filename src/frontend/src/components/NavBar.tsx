@@ -1,13 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
-import {
-  BookOpen,
-  Bot,
-  GraduationCap,
-  Menu,
-  TrendingUp,
-  X,
-} from "lucide-react";
+import { BookOpen, Bot, Menu, Settings, TrendingUp, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 
@@ -23,6 +16,7 @@ export default function NavBar() {
       ocid: "nav.progress.link",
     },
     { to: "/chat", label: "AI Teacher", icon: Bot, ocid: "nav.chat.link" },
+    { to: "/admin", label: "Admin", icon: Settings, ocid: "nav.admin.link" },
   ];
 
   return (
@@ -31,8 +25,12 @@ export default function NavBar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-warm">
-              <GraduationCap className="w-5 h-5 text-white" />
+            <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-primary shadow-warm">
+              <img
+                src="/assets/uploads/IMG_20250912_213629-1.jpg"
+                alt="Parbin"
+                className="w-full h-full object-cover object-top"
+              />
             </div>
             <div className="flex flex-col leading-none">
               <span className="font-display font-bold text-sm text-foreground">

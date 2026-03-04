@@ -3,17 +3,21 @@ import Array "mo:core/Array";
 import List "mo:core/List";
 import Text "mo:core/Text";
 import Nat "mo:core/Nat";
-import Runtime "mo:core/Runtime";
-import Order "mo:core/Order";
-import Iter "mo:core/Iter";
 import Principal "mo:core/Principal";
+import Runtime "mo:core/Runtime";
+import Iter "mo:core/Iter";
+import Order "mo:core/Order";
+import Migration "migration";
+import AccessControl "authorization/access-control";
+import MixinAuthorization "authorization/MixinAuthorization";
 
+(with migration = Migration.run)
 actor {
-  // Type Definitions
   type Lesson = {
     title : Text;
     description : Text;
     videoUrl : Text;
+    pdfUrl : Text;
     notes : Text;
   };
 
@@ -36,6 +40,15 @@ actor {
     quizScores : [(Nat, Text, Nat)]; // (class, subject, score)
   };
 
+  public type UserProfile = {
+    name : Text;
+    classNum : Nat;
+  };
+
+  // Persistent data structures
+  type PersistentLesson = List.List<Lesson>;
+  type PersistentQuiz = List.List<QuizQuestion>;
+
   // Tuple comparison for (Nat, Text)
   module NatTextTuple {
     public type Tuple = (Nat, Text);
@@ -47,17 +60,26 @@ actor {
     };
   };
 
-  // Persistent Data Structures
-  let lessonsStorePersistent = Map.empty<NatTextTuple.Tuple, List.List<Lesson>>();
-  let quizStorePersistent = Map.empty<NatTextTuple.Tuple, List.List<QuizQuestion>>();
+  // Persistent Map for lessons
+  let lessonsStorePersistent = Map.empty<NatTextTuple.Tuple, PersistentLesson>();
 
-  // Persistent lists for doubtsStore (no persistent List<List<List<...>>> exists)
+  // Persistent Map for quizzes
+  let quizStorePersistent = Map.empty<NatTextTuple.Tuple, PersistentQuiz>();
+
+  // Persistent List for doubts
   let doubtsStorePersistent = List.empty<Doubt>();
 
-  // Persistent Map for progressStore
+  // Persistent Map for user progress
   let progressStorePersistent = Map.empty<Principal, Progress>();
 
-  // Module for tuple comparison
+  // Persistent Map for user profiles
+  let userProfiles = Map.empty<Principal, UserProfile>();
+
+  // Authorization system
+  let accessControlState = AccessControl.initState();
+  include MixinAuthorization(accessControlState);
+
+  // Tuple comparison for (Nat, Text, Text)
   module Tuple3 {
     public type Tuple = (Nat, Text, Text);
     public func compare(a : Tuple, b : Tuple) : Order.Order {
@@ -73,7 +95,7 @@ actor {
     };
   };
 
-  // Tuple comparison for (Nat, Text, Nat)
+  // Tuple comparison for (Nat, Text, Nat) for quiz scores
   module Tuple3Score {
     public type Tuple = (Nat, Text, Nat);
     public func compare(a : Tuple, b : Tuple) : Order.Order {
@@ -89,12 +111,40 @@ actor {
     };
   };
 
+  // User Profile Management
+  public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can view profiles");
+    };
+    userProfiles.get(caller);
+  };
+
+  public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
+    if (caller != user and not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Can only view your own profile");
+    };
+    userProfiles.get(user);
+  };
+
+  public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can save profiles");
+    };
+    userProfiles.add(caller, profile);
+  };
+
+  // Get subjects for a class (public access)
   public query ({ caller }) func getSubjects(classNum : Nat) : async [Text] {
     if (classNum < 1 or classNum > 12) { Runtime.trap("Invalid class number") };
     ["Maths", "Science", "English", "Hindi", "Social Science", "Computer"];
   };
 
+  // Add lesson (admin only)
   public shared ({ caller }) func addLesson(classNum : Nat, subject : Text, lesson : Lesson) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can add lessons");
+    };
+
     let key = (classNum, subject);
     let currentLessons = switch (lessonsStorePersistent.get(key)) {
       case (?lessons) { lessons };
@@ -104,6 +154,7 @@ actor {
     lessonsStorePersistent.add(key, currentLessons);
   };
 
+  // Get lessons for a class+subject (public access)
   public query ({ caller }) func getLessons(classNum : Nat, subject : Text) : async [Lesson] {
     switch (lessonsStorePersistent.get((classNum, subject))) {
       case (?lessons) { lessons.toArray() };
@@ -111,7 +162,12 @@ actor {
     };
   };
 
+  // Add quiz question (admin only)
   public shared ({ caller }) func addQuizQuestion(classNum : Nat, subject : Text, question : QuizQuestion) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can add quiz questions");
+    };
+
     let key = (classNum, subject);
     let currentQuestions = switch (quizStorePersistent.get(key)) {
       case (?questions) { questions };
@@ -121,6 +177,7 @@ actor {
     quizStorePersistent.add(key, currentQuestions);
   };
 
+  // Get quiz questions for a class+subject (public access)
   public query ({ caller }) func getQuizQuestions(classNum : Nat, subject : Text) : async [QuizQuestion] {
     switch (quizStorePersistent.get((classNum, subject))) {
       case (?questions) { questions.toArray() };
@@ -128,7 +185,12 @@ actor {
     };
   };
 
+  // Mark lesson as completed (user only)
   public shared ({ caller }) func completeLesson(classNum : Nat, subject : Text, lessonTitle : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can complete lessons");
+    };
+
     let userProgress = switch (progressStorePersistent.get(caller)) {
       case (?progress) { progress };
       case (null) {
@@ -149,14 +211,24 @@ actor {
     progressStorePersistent.add(caller, updatedProgress);
   };
 
+  // Get completed lessons for user (user only)
   public query ({ caller }) func getCompletedLessons() : async [(Nat, Text, Text)] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can get completed lessons");
+    };
+
     switch (progressStorePersistent.get(caller)) {
       case (?progress) { progress.completedLessons };
       case (null) { [] };
     };
   };
 
+  // Submit quiz score (user only)
   public shared ({ caller }) func submitQuizScore(classNum : Nat, subject : Text, score : Nat) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can submit quiz scores");
+    };
+
     let userProgress = switch (progressStorePersistent.get(caller)) {
       case (?progress) { progress };
       case (null) {
@@ -177,14 +249,24 @@ actor {
     progressStorePersistent.add(caller, updatedProgress);
   };
 
+  // Get quiz scores for user (user only)
   public query ({ caller }) func getQuizScores() : async [(Nat, Text, Nat)] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can get quiz scores");
+    };
+
     switch (progressStorePersistent.get(caller)) {
       case (?progress) { progress.quizScores };
       case (null) { [] };
     };
   };
 
+  // Submit doubt (user only)
   public shared ({ caller }) func submitDoubt(studentName : Text, classNum : Nat, subject : Text, question : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can submit doubts");
+    };
+
     let newDoubt = {
       studentName;
       classNum;
@@ -195,7 +277,12 @@ actor {
     doubtsStorePersistent.add(newDoubt);
   };
 
+  // Answer doubt (admin only)
   public shared ({ caller }) func answerDoubt(index : Nat, answer : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can answer doubts");
+    };
+
     if (index >= doubtsStorePersistent.size()) { Runtime.trap("Doubt index out of bounds") };
     let doubtsArray = doubtsStorePersistent.toArray();
     let updatedArray = Array.tabulate(
@@ -215,10 +302,15 @@ actor {
     doubtsStorePersistent.addAll(updatedArray.values());
   };
 
+  // Get all doubts (admin only)
   public query ({ caller }) func getAllDoubts() : async [Doubt] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can get all doubts");
+    };
     doubtsStorePersistent.toArray();
   };
 
+  // Get doubts by class+subject (public access - educational content)
   public query ({ caller }) func getDoubtsByClassSubject(classNum : Nat, subject : Text) : async [Doubt] {
     doubtsStorePersistent.toArray().filter(
       func(doubt) {
@@ -227,93 +319,11 @@ actor {
     );
   };
 
+  // Get unanswered doubts (admin only)
   public query ({ caller }) func getUnansweredDoubts() : async [Doubt] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can get unanswered doubts");
+    };
     doubtsStorePersistent.toArray().filter(func(doubt) { doubt.answer == null });
-  };
-
-  system func preupgrade() {
-    // No additional state to persist
-  };
-
-  system func postupgrade() {
-    // Pre-populate demo content for Class 6
-    let class6Maths = (6, "Maths");
-    let class6Science = (6, "Science");
-
-    // Lessons
-    let mathsLessons = List.empty<Lesson>();
-    mathsLessons.add(
-      {
-        title = "Fractions";
-        description = "Introduction to fractions";
-        videoUrl = "pending";
-        notes = "Fractions represent parts of a whole.";
-      },
-    );
-    mathsLessons.add(
-      {
-        title = "Decimals";
-        description = "Understanding decimals";
-        videoUrl = "pending";
-        notes = "Decimals are another way to represent parts of a whole.";
-      },
-    );
-
-    let scienceLessons = List.empty<Lesson>();
-    scienceLessons.add(
-      {
-        title = "Food Habits";
-        description = "Types of food habits";
-        videoUrl = "pending";
-        notes = "Animals and humans have different food habits.";
-      },
-    );
-    scienceLessons.add(
-      {
-        title = "Living and Non-living";
-        description = "Difference between living and non-living things";
-        videoUrl = "pending";
-        notes = "Characteristics that distinguish living from non-living things.";
-      },
-    );
-
-    lessonsStorePersistent.add(class6Maths, mathsLessons);
-    lessonsStorePersistent.add(class6Science, scienceLessons);
-
-    // Quiz Questions
-    let mathsQuestions = List.empty<QuizQuestion>();
-    mathsQuestions.add(
-      {
-        question = "What is 1/2 as a decimal?";
-        options = ["0.2", "0.5", "0.8", "1.2"];
-        correctIndex = 1;
-      },
-    );
-    mathsQuestions.add(
-      {
-        question = "Which is a proper fraction?";
-        options = ["3/3", "5/5", "2/5", "9/9"];
-        correctIndex = 2;
-      },
-    );
-
-    let scienceQuestions = List.empty<QuizQuestion>();
-    scienceQuestions.add(
-      {
-        question = "What do herbivores eat?";
-        options = ["Fruits", "Vegetables", "Meat", "Bugs"];
-        correctIndex = 1;
-      },
-    );
-    scienceQuestions.add(
-      {
-        question = "Which is living?";
-        options = ["Rock", "Car", "Tree", "Phone"];
-        correctIndex = 2;
-      },
-    );
-
-    quizStorePersistent.add(class6Maths, mathsQuestions);
-    quizStorePersistent.add(class6Science, scienceQuestions);
   };
 };

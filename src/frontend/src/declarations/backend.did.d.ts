@@ -20,6 +20,7 @@ export interface Doubt {
 export interface Lesson {
   'title' : string,
   'description' : string,
+  'pdfUrl' : string,
   'notes' : string,
   'videoUrl' : string,
 }
@@ -28,12 +29,20 @@ export interface QuizQuestion {
   'correctIndex' : bigint,
   'options' : Array<string>,
 }
+export interface UserProfile { 'name' : string, 'classNum' : bigint }
+export type UserRole = { 'admin' : null } |
+  { 'user' : null } |
+  { 'guest' : null };
 export interface _SERVICE {
+  '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addLesson' : ActorMethod<[bigint, string, Lesson], undefined>,
   'addQuizQuestion' : ActorMethod<[bigint, string, QuizQuestion], undefined>,
   'answerDoubt' : ActorMethod<[bigint, string], undefined>,
+  'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'completeLesson' : ActorMethod<[bigint, string, string], undefined>,
   'getAllDoubts' : ActorMethod<[], Array<Doubt>>,
+  'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
+  'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getCompletedLessons' : ActorMethod<[], Array<[bigint, string, string]>>,
   'getDoubtsByClassSubject' : ActorMethod<[bigint, string], Array<Doubt>>,
   'getLessons' : ActorMethod<[bigint, string], Array<Lesson>>,
@@ -41,6 +50,9 @@ export interface _SERVICE {
   'getQuizScores' : ActorMethod<[], Array<[bigint, string, bigint]>>,
   'getSubjects' : ActorMethod<[bigint], Array<string>>,
   'getUnansweredDoubts' : ActorMethod<[], Array<Doubt>>,
+  'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
+  'isCallerAdmin' : ActorMethod<[], boolean>,
+  'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'submitDoubt' : ActorMethod<[string, bigint, string, string], undefined>,
   'submitQuizScore' : ActorMethod<[bigint, string, bigint], undefined>,
 }
