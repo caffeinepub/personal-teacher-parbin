@@ -152,6 +152,11 @@ export function useSubmitQuizScore() {
 
 // ─── Admin Queries & Mutations ─────────────────────────────────────────────────
 
+// Extended actor type to include the authorization init method
+type ActorWithInit = ReturnType<typeof useActor>["actor"] & {
+  _initializeAccessControlWithSecret?: (userSecret: string) => Promise<void>;
+};
+
 export function useIsAdmin() {
   const { actor, isFetching } = useActor();
   const { identity } = useInternetIdentity();
@@ -159,9 +164,45 @@ export function useIsAdmin() {
     queryKey: ["isAdmin", identity?.getPrincipal().toString()],
     queryFn: async () => {
       if (!actor) return false;
-      return actor.isCallerAdmin();
+      try {
+        return await actor.isCallerAdmin();
+      } catch (err) {
+        // If user is not registered yet, isCallerAdmin() traps with "User is not registered"
+        // Return null to indicate unregistered state (distinct from false = registered non-admin)
+        const msg = String(err);
+        if (
+          msg.includes("User is not registered") ||
+          msg.includes("not registered")
+        ) {
+          return null as unknown as boolean;
+        }
+        throw err;
+      }
     },
     enabled: !!actor && !isFetching && !!identity,
+    retry: false,
+  });
+}
+
+export function useInitializeWithSecret() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  const { identity } = useInternetIdentity();
+  return useMutation({
+    mutationFn: async (userSecret: string) => {
+      if (!actor) throw new Error("Actor not available");
+      const actorWithInit = actor as ActorWithInit;
+      if (!actorWithInit._initializeAccessControlWithSecret) {
+        throw new Error("Initialization method not available");
+      }
+      return actorWithInit._initializeAccessControlWithSecret(userSecret);
+    },
+    onSuccess: () => {
+      // Invalidate isAdmin so it re-fetches after registration
+      queryClient.invalidateQueries({
+        queryKey: ["isAdmin", identity?.getPrincipal().toString()],
+      });
+    },
   });
 }
 

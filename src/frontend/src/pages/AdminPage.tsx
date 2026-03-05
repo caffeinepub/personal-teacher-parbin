@@ -23,6 +23,7 @@ import {
   BrainCircuit,
   CheckCircle2,
   HelpCircle,
+  Key,
   Loader2,
   Lock,
   LogIn,
@@ -43,6 +44,7 @@ import {
   useGetLessons,
   useGetQuizQuestions,
   useGetUnansweredDoubts,
+  useInitializeWithSecret,
   useIsAdmin,
 } from "../hooks/useQueries";
 
@@ -106,6 +108,145 @@ function AdminLoginScreen() {
             <p className="text-xs text-center text-muted-foreground">
               🔒 Sirf registered admin accounts ko access milega
             </p>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </div>
+  );
+}
+
+// ─── Admin Token Screen ────────────────────────────────────────────────────────
+
+function AdminTokenScreen({
+  onSuccess,
+}: {
+  onSuccess: () => void;
+}) {
+  const { clear } = useInternetIdentity();
+  const [token, setToken] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const initMutation = useInitializeWithSecret();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+    if (!token.trim()) {
+      setErrorMsg("Token field khali nahi hona chahiye.");
+      return;
+    }
+    try {
+      await initMutation.mutateAsync(token.trim());
+      toast.success("Registration successful! 🎉");
+      onSuccess();
+    } catch (err) {
+      const msg = String(err);
+      if (
+        msg.includes("CAFFEINE_ADMIN_TOKEN") ||
+        msg.includes("environment variable")
+      ) {
+        setErrorMsg("Server configuration error. Admin token not configured.");
+      } else {
+        setErrorMsg(
+          "Token submit nahi ho saka. Sahi token check karein aur dobara try karein.",
+        );
+      }
+    }
+  };
+
+  return (
+    <div className="min-h-[80vh] flex items-center justify-center px-4">
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="w-full max-w-md"
+      >
+        <Card className="border-2 border-border shadow-xl rounded-3xl overflow-hidden">
+          <div className="h-2 bg-gradient-to-r from-primary to-accent" />
+          <CardHeader className="text-center pt-8 pb-4">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Key className="w-8 h-8 text-primary" />
+            </div>
+            <CardTitle className="font-display font-black text-2xl text-foreground">
+              Admin Token Darj Karein
+            </CardTitle>
+            <CardDescription className="text-muted-foreground text-sm leading-relaxed">
+              Apna admin token daalo. Sahi token se admin access milega, galat
+              token se sirf user access milega.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-8 pb-8 space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label
+                  htmlFor="admin-token"
+                  className="text-sm font-semibold text-foreground"
+                >
+                  Admin Token
+                </Label>
+                <Input
+                  id="admin-token"
+                  data-ocid="admin.token.input"
+                  type="password"
+                  placeholder="••••••••••••"
+                  value={token}
+                  onChange={(e) => {
+                    setToken(e.target.value);
+                    setErrorMsg("");
+                  }}
+                  className="rounded-xl h-12 text-base"
+                  autoComplete="current-password"
+                  autoFocus
+                />
+              </div>
+
+              {errorMsg && (
+                <div
+                  data-ocid="admin.token.error_state"
+                  className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive"
+                >
+                  <Lock className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              {initMutation.isPending && (
+                <div
+                  data-ocid="admin.token.loading_state"
+                  className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-xl text-sm text-primary"
+                >
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                  <span>Token verify ho raha hai...</span>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                data-ocid="admin.token.submit_button"
+                disabled={initMutation.isPending || !token.trim()}
+                className="w-full h-12 rounded-2xl font-bold text-base shadow-md"
+              >
+                {initMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Verify ho raha hai...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-5 h-5 mr-2" />
+                    Token Submit Karein
+                  </>
+                )}
+              </Button>
+            </form>
+
+            <button
+              type="button"
+              onClick={clear}
+              className="w-full text-xs text-center text-muted-foreground hover:text-foreground transition-colors py-1"
+            >
+              ← Logout karein aur wapas jayein
+            </button>
           </CardContent>
         </Card>
       </motion.div>
@@ -1050,9 +1191,25 @@ function AdminDashboard() {
 
 export default function AdminPage() {
   const { identity, isInitializing } = useInternetIdentity();
-  const { data: isAdmin, isLoading: adminCheckLoading } = useIsAdmin();
+  const {
+    data: isAdmin,
+    isLoading: adminCheckLoading,
+    isError: adminCheckError,
+    refetch: refetchIsAdmin,
+  } = useIsAdmin();
+
+  // isAdmin === null means the user is not registered yet (trapped "User is not registered")
+  // isAdmin === false means registered but not admin
+  // isAdmin === true means registered and is admin
+  const isNotRegistered =
+    adminCheckError || (isAdmin !== undefined && isAdmin === null);
 
   const isAuthenticated = !!identity;
+
+  const handleTokenSuccess = () => {
+    // After initialization, refetch the admin status
+    refetchIsAdmin();
+  };
 
   if (isInitializing) {
     return (
@@ -1088,6 +1245,12 @@ export default function AdminPage() {
     );
   }
 
+  // User is not registered yet — show the token input screen
+  if (isNotRegistered) {
+    return <AdminTokenScreen onSuccess={handleTokenSuccess} />;
+  }
+
+  // Registered but not admin
   if (isAdmin === false) {
     return <AccessDeniedScreen />;
   }
