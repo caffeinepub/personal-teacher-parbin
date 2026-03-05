@@ -22,13 +22,9 @@ import {
   BookOpen,
   BrainCircuit,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   HelpCircle,
-  Key,
   Loader2,
   Lock,
-  LogIn,
   LogOut,
   Plus,
   Send,
@@ -37,7 +33,6 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   useAddLesson,
   useAddQuizQuestion,
@@ -46,9 +41,9 @@ import {
   useGetLessons,
   useGetQuizQuestions,
   useGetUnansweredDoubts,
-  useInitializeWithSecret,
-  useIsAdmin,
 } from "../hooks/useQueries";
+
+const ADMIN_PASSWORD = "PARBINDIHURI";
 
 const CLASSES = Array.from({ length: 12 }, (_, i) => i + 1);
 const SUBJECTS = [
@@ -61,10 +56,28 @@ const SUBJECTS = [
 ];
 const OPTIONS_LABELS = ["A", "B", "C", "D"] as const;
 
-// ─── Login Screen ──────────────────────────────────────────────────────────────
+// ─── Password Screen ───────────────────────────────────────────────────────────
 
-function AdminLoginScreen() {
-  const { login, isLoggingIn } = useInternetIdentity();
+function AdminPasswordScreen({ onSuccess }: { onSuccess: () => void }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      if (password === ADMIN_PASSWORD) {
+        toast.success("Admin panel mein aapka swagat hai!");
+        onSuccess();
+      } else {
+        setError("Password galat hai. Dobara try karein.");
+        setPassword("");
+      }
+    }, 500);
+  };
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
@@ -84,152 +97,62 @@ function AdminLoginScreen() {
               Admin Login
             </CardTitle>
             <CardDescription className="text-muted-foreground text-sm leading-relaxed">
-              Sirf <strong className="text-foreground">Umesh Singh</strong>{" "}
-              (authorized admin) hi is panel ko access kar sakte hain. Internet
-              Identity se login karein.
+              Sirf <strong className="text-foreground">Umesh Singh</strong> ke
+              liye. Password darj karein aage jaane ke liye.
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-8 pb-8 space-y-4">
-            <Button
-              data-ocid="admin.login.button"
-              onClick={login}
-              disabled={isLoggingIn}
-              className="w-full h-12 rounded-2xl font-bold text-base shadow-md"
-            >
-              {isLoggingIn ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Login ho raha hai...
-                </>
-              ) : (
-                <>
-                  <LogIn className="w-5 h-5 mr-2" />
-                  Internet Identity se Login Karein
-                </>
-              )}
-            </Button>
-            <p className="text-xs text-center text-muted-foreground">
-              🔒 Sirf registered admin accounts ko access milega
-            </p>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </div>
-  );
-}
-
-// ─── Admin Token Screen ────────────────────────────────────────────────────────
-
-function AdminTokenScreen({
-  onSuccess,
-}: {
-  onSuccess: () => void;
-}) {
-  const { clear } = useInternetIdentity();
-  const [token, setToken] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
-  const initMutation = useInitializeWithSecret();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg("");
-    if (!token.trim()) {
-      setErrorMsg("Token field khali nahi hona chahiye.");
-      return;
-    }
-    try {
-      await initMutation.mutateAsync(token.trim());
-      toast.success("Registration successful! 🎉");
-      onSuccess();
-    } catch (err) {
-      const msg = String(err);
-      if (
-        msg.includes("CAFFEINE_ADMIN_TOKEN") ||
-        msg.includes("environment variable")
-      ) {
-        setErrorMsg("Server configuration error. Admin token not configured.");
-      } else {
-        setErrorMsg(
-          "Token submit nahi ho saka. Sahi token check karein aur dobara try karein.",
-        );
-      }
-    }
-  };
-
-  return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4">
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-md"
-      >
-        <Card className="border-2 border-border shadow-xl rounded-3xl overflow-hidden">
-          <div className="h-2 bg-gradient-to-r from-primary to-accent" />
-          <CardHeader className="text-center pt-8 pb-4">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Key className="w-8 h-8 text-primary" />
-            </div>
-            <CardTitle className="font-display font-black text-2xl text-foreground">
-              Admin Token Darj Karein
-            </CardTitle>
-            <CardDescription className="text-muted-foreground text-sm leading-relaxed">
-              Apna admin token daalo. Sahi token se admin access milega, galat
-              token se sirf user access milega.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-8 pb-8 space-y-4">
+          <CardContent className="px-8 pb-8">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label
-                  htmlFor="admin-token"
-                  className="text-sm font-semibold text-foreground"
+                  htmlFor="admin-password"
+                  className="text-sm font-semibold"
                 >
-                  Admin Token
+                  Password
                 </Label>
                 <Input
-                  id="admin-token"
-                  data-ocid="admin.token.input"
+                  id="admin-password"
+                  data-ocid="admin.password.input"
                   type="password"
-                  placeholder="••••••••••••"
-                  value={token}
+                  placeholder="Password yahan likhein..."
+                  value={password}
                   onChange={(e) => {
-                    setToken(e.target.value);
-                    setErrorMsg("");
+                    setPassword(e.target.value);
+                    setError("");
                   }}
                   className="rounded-xl h-12 text-base"
-                  autoComplete="current-password"
                   autoFocus
+                  autoComplete="current-password"
                 />
               </div>
 
-              {errorMsg && (
+              {error && (
                 <div
-                  data-ocid="admin.token.error_state"
+                  data-ocid="admin.password.error_state"
                   className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive"
                 >
                   <Lock className="w-4 h-4 mt-0.5 shrink-0" />
-                  <span>{errorMsg}</span>
+                  <span>{error}</span>
                 </div>
               )}
 
-              {initMutation.isPending && (
+              {loading && (
                 <div
-                  data-ocid="admin.token.loading_state"
+                  data-ocid="admin.password.loading_state"
                   className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-xl text-sm text-primary"
                 >
                   <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                  <span>Token verify ho raha hai...</span>
+                  <span>Verify ho raha hai...</span>
                 </div>
               )}
 
               <Button
                 type="submit"
-                data-ocid="admin.token.submit_button"
-                disabled={initMutation.isPending || !token.trim()}
+                data-ocid="admin.password.submit_button"
+                disabled={loading || !password.trim()}
                 className="w-full h-12 rounded-2xl font-bold text-base shadow-md"
               >
-                {initMutation.isPending ? (
+                {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                     Verify ho raha hai...
@@ -237,206 +160,11 @@ function AdminTokenScreen({
                 ) : (
                   <>
                     <ShieldCheck className="w-5 h-5 mr-2" />
-                    Token Submit Karein
+                    Admin Panel Kholo
                   </>
                 )}
               </Button>
             </form>
-
-            <button
-              type="button"
-              onClick={clear}
-              className="w-full text-xs text-center text-muted-foreground hover:text-foreground transition-colors py-1"
-            >
-              ← Logout karein aur wapas jayein
-            </button>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </div>
-  );
-}
-
-// ─── Access Denied Screen ──────────────────────────────────────────────────────
-
-function AccessDeniedScreen({
-  onClaimSuccess,
-}: {
-  onClaimSuccess?: () => void;
-}) {
-  const { clear } = useInternetIdentity();
-  const [claimOpen, setClaimOpen] = useState(false);
-  const [claimToken, setClaimToken] = useState("");
-  const [claimError, setClaimError] = useState("");
-  const [claimSuccess, setClaimSuccess] = useState(false);
-  const initMutation = useInitializeWithSecret();
-
-  const handleClaim = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setClaimError("");
-    setClaimSuccess(false);
-    if (!claimToken.trim()) {
-      setClaimError("Token field khali nahi hona chahiye.");
-      return;
-    }
-    try {
-      await initMutation.mutateAsync(claimToken.trim());
-      setClaimSuccess(true);
-      toast.success("Admin access mil gaya! 🎉");
-      onClaimSuccess?.();
-    } catch {
-      setClaimError(
-        "Token galat hai ya aap pehle se registered hain. Support se contact karein.",
-      );
-    }
-  };
-
-  return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.35 }}
-        className="w-full max-w-md text-center"
-      >
-        <Card className="border-2 border-destructive/30 shadow-xl rounded-3xl overflow-hidden">
-          <div className="h-2 bg-destructive/60" />
-          <CardHeader className="pt-8 pb-4">
-            <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-8 h-8 text-destructive" />
-            </div>
-            <CardTitle className="font-display font-black text-2xl text-destructive">
-              Access Denied
-            </CardTitle>
-            <CardDescription className="text-muted-foreground text-sm leading-relaxed">
-              Yeh admin panel sirf{" "}
-              <strong className="text-foreground">Umesh Singh</strong> ke liye
-              hai. Agar aap Umesh Singh hain aur admin token jaante hain, to
-              neeche enter karein.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-8 pb-8 space-y-4">
-            {/* Claim Admin Collapsible */}
-            <div className="border border-border rounded-2xl overflow-hidden">
-              <button
-                type="button"
-                data-ocid="admin.claim.toggle"
-                onClick={() => setClaimOpen((v) => !v)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-secondary hover:bg-secondary/80 transition-colors text-sm font-semibold text-foreground"
-              >
-                <span className="flex items-center gap-2">
-                  <Key className="w-4 h-4 text-primary" />
-                  Kya aap Umesh Singh hain?
-                </span>
-                {claimOpen ? (
-                  <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                )}
-              </button>
-
-              <AnimatePresence>
-                {claimOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.22 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="px-4 py-4 bg-card space-y-3">
-                      {claimSuccess ? (
-                        <div
-                          data-ocid="admin.claim.success_state"
-                          className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700"
-                        >
-                          <ShieldCheck className="w-4 h-4 shrink-0" />
-                          <span>
-                            Admin access mil gaya! Page reload ho raha hai...
-                          </span>
-                        </div>
-                      ) : (
-                        <form onSubmit={handleClaim} className="space-y-3">
-                          <div className="space-y-1.5">
-                            <Label
-                              htmlFor="claim-token"
-                              className="text-xs font-semibold text-foreground"
-                            >
-                              Admin Token
-                            </Label>
-                            <Input
-                              id="claim-token"
-                              data-ocid="admin.claim.token.input"
-                              type="password"
-                              placeholder="••••••••••••"
-                              value={claimToken}
-                              onChange={(e) => {
-                                setClaimToken(e.target.value);
-                                setClaimError("");
-                              }}
-                              className="rounded-xl h-10 text-sm"
-                              autoComplete="current-password"
-                            />
-                          </div>
-
-                          {claimError && (
-                            <div
-                              data-ocid="admin.claim.error_state"
-                              className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-xl text-xs text-destructive"
-                            >
-                              <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                              <span>{claimError}</span>
-                            </div>
-                          )}
-
-                          {initMutation.isPending && (
-                            <div
-                              data-ocid="admin.claim.loading_state"
-                              className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-xl text-xs text-primary"
-                            >
-                              <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
-                              <span>Verify ho raha hai...</span>
-                            </div>
-                          )}
-
-                          <Button
-                            type="submit"
-                            data-ocid="admin.claim.submit_button"
-                            disabled={
-                              initMutation.isPending || !claimToken.trim()
-                            }
-                            size="sm"
-                            className="w-full rounded-xl font-bold"
-                          >
-                            {initMutation.isPending ? (
-                              <>
-                                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                                Verify ho raha hai...
-                              </>
-                            ) : (
-                              <>
-                                <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
-                                Admin Claim Karein
-                              </>
-                            )}
-                          </Button>
-                        </form>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            <Button
-              data-ocid="admin.logout.button"
-              onClick={clear}
-              variant="destructive"
-              className="w-full h-11 rounded-2xl font-semibold"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout Karein
-            </Button>
           </CardContent>
         </Card>
       </motion.div>
@@ -1179,8 +907,7 @@ function AnsweredDoubtsCollapsible({
 
 // ─── Admin Dashboard ───────────────────────────────────────────────────────────
 
-function AdminDashboard() {
-  const { clear, identity } = useInternetIdentity();
+function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [selectedClass, setSelectedClass] = useState(6);
   const [selectedSubject, setSelectedSubject] = useState("Maths");
 
@@ -1208,17 +935,9 @@ function AdminDashboard() {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          {identity && (
-            <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-secondary rounded-xl text-xs text-muted-foreground">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              <span className="font-mono truncate max-w-[140px]">
-                {identity.getPrincipal().toString().slice(0, 12)}...
-              </span>
-            </div>
-          )}
           <Button
             data-ocid="admin.logout.button"
-            onClick={clear}
+            onClick={onLogout}
             variant="outline"
             size="sm"
             className="rounded-xl font-semibold border-2"
@@ -1336,70 +1055,11 @@ function AdminDashboard() {
 // ─── Main Admin Page ───────────────────────────────────────────────────────────
 
 export default function AdminPage() {
-  const { identity, isInitializing } = useInternetIdentity();
-  const {
-    data: isAdmin,
-    isLoading: adminCheckLoading,
-    isError: adminCheckError,
-    refetch: refetchIsAdmin,
-  } = useIsAdmin();
-
-  // isAdmin === null means the user is not registered yet (trapped "User is not registered")
-  // isAdmin === false means registered but not admin
-  // isAdmin === true means registered and is admin
-  const isNotRegistered =
-    adminCheckError || (isAdmin !== undefined && isAdmin === null);
-
-  const isAuthenticated = !!identity;
-
-  const handleTokenSuccess = () => {
-    // After initialization, refetch the admin status
-    refetchIsAdmin();
-  };
-
-  if (isInitializing) {
-    return (
-      <div
-        data-ocid="admin.loading_state"
-        className="min-h-[80vh] flex items-center justify-center"
-      >
-        <div className="flex flex-col items-center gap-4 text-muted-foreground">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-sm font-medium">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   if (!isAuthenticated) {
-    return <AdminLoginScreen />;
+    return <AdminPasswordScreen onSuccess={() => setIsAuthenticated(true)} />;
   }
 
-  if (adminCheckLoading) {
-    return (
-      <div
-        data-ocid="admin.loading_state"
-        className="min-h-[80vh] flex items-center justify-center"
-      >
-        <div className="flex flex-col items-center gap-4 text-muted-foreground">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-sm font-medium">
-            Admin access check ho raha hai...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // User is not registered yet — show the token input screen
-  if (isNotRegistered) {
-    return <AdminTokenScreen onSuccess={handleTokenSuccess} />;
-  }
-
-  // Registered but not admin
-  if (isAdmin === false) {
-    return <AccessDeniedScreen onClaimSuccess={refetchIsAdmin} />;
-  }
-
-  return <AdminDashboard />;
+  return <AdminDashboard onLogout={() => setIsAuthenticated(false)} />;
 }
