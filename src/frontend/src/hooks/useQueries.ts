@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Doubt, Lesson, QuizQuestion } from "../backend.d";
+import type { Doubt, Lesson, Poll, QuizQuestion } from "../backend.d";
 import { useActor } from "./useActor";
 import { useInternetIdentity } from "./useInternetIdentity";
 
@@ -275,6 +275,73 @@ export function useAddQuizQuestion() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["quiz", variables.classNum, variables.subject],
+      });
+    },
+  });
+}
+
+export function useGetPolls(classNum: number, subject: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery<Poll[]>({
+    queryKey: ["polls", classNum, subject],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getPolls(BigInt(classNum), subject);
+    },
+    enabled: !!actor && !isFetching && !!subject,
+  });
+}
+
+export function useAddPoll() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      classNum,
+      subject,
+      pollData,
+    }: {
+      classNum: number;
+      subject: string;
+      pollData: { question: string; options: string[] };
+    }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.addPoll(BigInt(classNum), subject, pollData);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["polls", variables.classNum, variables.subject],
+      });
+    },
+  });
+}
+
+export function useVotePoll() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      classNum,
+      subject,
+      pollIndex,
+      optionIndex,
+    }: {
+      classNum: number;
+      subject: string;
+      pollIndex: number;
+      optionIndex: number;
+    }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.votePoll(
+        BigInt(classNum),
+        subject,
+        BigInt(pollIndex),
+        BigInt(optionIndex),
+      );
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["polls", variables.classNum, variables.subject],
       });
     },
   });

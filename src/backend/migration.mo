@@ -1,21 +1,20 @@
 import Map "mo:core/Map";
 import List "mo:core/List";
+import Principal "mo:core/Principal";
 import Nat "mo:core/Nat";
 import Text "mo:core/Text";
 import Array "mo:core/Array";
-import Order "mo:core/Order";
-import Principal "mo:core/Principal";
 
 module {
-  // Type Definitions
   type Lesson = {
     title : Text;
     description : Text;
     videoUrl : Text;
+    pdfUrl : Text;
     notes : Text;
   };
 
-  type OldQuizQuestion = {
+  type QuizQuestion = {
     question : Text;
     options : [Text];
     correctIndex : Nat;
@@ -29,120 +28,49 @@ module {
     answer : ?Text;
   };
 
-  type OldProgress = {
+  type Progress = {
     completedLessons : [(Nat, Text, Text)];
     quizScores : [(Nat, Text, Nat)];
   };
 
-  type PersistentLesson = List.List<Lesson>;
-  type PersistentQuiz = List.List<OldQuizQuestion>;
-
-  module NatTextTuple {
-    public type Tuple = (Nat, Text);
-    public func compare(a : Tuple, b : Tuple) : Order.Order {
-      switch (Nat.compare(a.0, b.0)) {
-        case (#equal) { Text.compare(a.1, b.1) };
-        case (other) { other };
-      };
-    };
-  };
-
-  module Tuple3 {
-    public type Tuple = (Nat, Text, Text);
-    public func compare(a : Tuple, b : Tuple) : Order.Order {
-      switch (Nat.compare(a.0, b.0)) {
-        case (#equal) {
-          switch (Text.compare(a.1, b.1)) {
-            case (#equal) { Text.compare(a.2, b.2) };
-            case (order) { order };
-          };
-        };
-        case (order) { order };
-      };
-    };
-  };
-
-  module Tuple3Score {
-    public type Tuple = (Nat, Text, Nat);
-    public func compare(a : Tuple, b : Tuple) : Order.Order {
-      switch (Nat.compare(a.0, b.0)) {
-        case (#equal) {
-          switch (Text.compare(a.1, b.1)) {
-            case (#equal) { Nat.compare(a.2, b.2) };
-            case (order) { order };
-          };
-        };
-        case (order) { order };
-      };
-    };
-  };
-
-  type OldActor = {
-    lessonsStorePersistent : Map.Map<NatTextTuple.Tuple, PersistentLesson>;
-    quizStorePersistent : Map.Map<NatTextTuple.Tuple, PersistentQuiz>;
-    doubtsStorePersistent : List.List<Doubt>;
-    progressStorePersistent : Map.Map<Principal, OldProgress>;
-  };
-
-  // New definitions for user profiles and lessons
-  public type UserProfile = {
+  type UserProfile = {
     name : Text;
     classNum : Nat;
   };
 
-  type PersistentNewLesson = List.List<NewLesson>;
-  type PersistentNewQuiz = List.List<NewQuizQuestion>;
-
-  type NewLesson = {
-    title : Text;
-    description : Text;
-    videoUrl : Text;
-    pdfUrl : Text;
-    notes : Text;
-  };
-
-  type NewQuizQuestion = {
+  type Poll = {
     question : Text;
     options : [Text];
-    correctIndex : Nat;
+    classNum : Nat;
+    subject : Text;
+    votes : [Nat];
   };
 
-  type NewProgress = {
-    completedLessons : [(Nat, Text, Text)];
-    quizScores : [(Nat, Text, Nat)];
-  };
+  type PersistentLesson = List.List<Lesson>;
+  type PersistentQuiz = List.List<QuizQuestion>;
 
-  type NewActor = {
-    lessonsStorePersistent : Map.Map<NatTextTuple.Tuple, PersistentNewLesson>;
-    quizStorePersistent : Map.Map<NatTextTuple.Tuple, PersistentNewQuiz>;
+  // old actor without pollStore
+  type OldActor = {
+    lessonsStorePersistent : Map.Map<(Nat, Text), PersistentLesson>;
+    quizStorePersistent : Map.Map<(Nat, Text), PersistentQuiz>;
     doubtsStorePersistent : List.List<Doubt>;
-    progressStorePersistent : Map.Map<Principal, NewProgress>;
+    progressStorePersistent : Map.Map<Principal, Progress>;
     userProfiles : Map.Map<Principal, UserProfile>;
   };
 
-  public func run(old : OldActor) : NewActor {
-    // Convert persistent lesson data (only add empty pdfUrl for now since it cannot be covered by automatic migration)
-    let newLessonsStore = old.lessonsStorePersistent.map<NatTextTuple.Tuple, PersistentLesson, PersistentNewLesson>(
-      func(_key, oldLessonList) {
-        let oldLessonsArray = oldLessonList.toArray();
-        let transformedLessonsArray = oldLessonsArray.map(
-          func(oldLesson) {
-            {
-              oldLesson with
-              pdfUrl = "";
-            };
-          }
-        );
-        List.fromArray(transformedLessonsArray);
-      }
-    );
+  type NewActor = {
+    lessonsStorePersistent : Map.Map<(Nat, Text), PersistentLesson>;
+    quizStorePersistent : Map.Map<(Nat, Text), PersistentQuiz>;
+    doubtsStorePersistent : List.List<Doubt>;
+    progressStorePersistent : Map.Map<Principal, Progress>;
+    userProfiles : Map.Map<Principal, UserProfile>;
+    pollStorePersistent : Map.Map<(Nat, Text), List.List<Poll>>;
+  };
 
+  public func run(old : OldActor) : NewActor {
     {
-      lessonsStorePersistent = newLessonsStore;
-      quizStorePersistent = old.quizStorePersistent;
-      doubtsStorePersistent = old.doubtsStorePersistent;
-      progressStorePersistent = old.progressStorePersistent;
-      userProfiles = Map.empty<Principal, UserProfile>();
+      old with
+      pollStorePersistent = Map.empty<(Nat, Text), List.List<Poll>>();
     };
   };
 };

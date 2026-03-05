@@ -19,9 +19,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  BarChart2,
   BookOpen,
   BrainCircuit,
   CheckCircle2,
+  FileText,
   HelpCircle,
   Loader2,
   Lock,
@@ -29,16 +31,21 @@ import {
   Plus,
   Send,
   ShieldCheck,
+  StickyNote,
+  Trash2,
+  Video,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
   useAddLesson,
+  useAddPoll,
   useAddQuizQuestion,
   useAnswerDoubt,
   useGetAllDoubts,
   useGetLessons,
+  useGetPolls,
   useGetQuizQuestions,
   useGetUnansweredDoubts,
 } from "../hooks/useQueries";
@@ -172,7 +179,7 @@ function AdminPasswordScreen({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
-// ─── Lesson Form ───────────────────────────────────────────────────────────────
+// ─── Content Form (PDF / Video / Notes / Poll / Quiz tabs) ─────────────────────
 
 function LessonForm({
   classNum,
@@ -181,22 +188,92 @@ function LessonForm({
   classNum: number;
   subject: string;
 }) {
+  // Common fields (for PDF / Video / Notes)
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [videoUrl, setVideoUrl] = useState("");
+
+  // PDF tab state
   const [pdfUrl, setPdfUrl] = useState("");
+
+  // Video tab state
+  const [videoUrl, setVideoUrl] = useState("");
+
+  // Notes tab state
   const [notes, setNotes] = useState("");
 
+  // Poll tab state
+  const [pollQuestion, setPollQuestion] = useState("");
+  const [pollNextId, setPollNextId] = useState(2);
+  const [pollOptions, setPollOptions] = useState<
+    { id: number; value: string }[]
+  >([
+    { id: 0, value: "" },
+    { id: 1, value: "" },
+  ]);
+
+  // Quiz tab state
+  const [quizQuestion, setQuizQuestion] = useState("");
+  const [quizOptions, setQuizOptions] = useState(["", "", "", ""]);
+  const [correctIndex, setCorrectIndex] = useState<number>(0);
+
   const addLesson = useAddLesson();
+  const addPoll = useAddPoll();
+  const addQuizQuestion = useAddQuizQuestion();
+
   const { data: lessons, isLoading: lessonsLoading } = useGetLessons(
     classNum,
     subject,
   );
+  const { data: polls, isLoading: pollsLoading } = useGetPolls(
+    classNum,
+    subject,
+  );
+  const { data: quizQuestions, isLoading: quizLoading } = useGetQuizQuestions(
+    classNum,
+    subject,
+  );
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // ── PDF Submit ──
+  const handlePdfSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
       toast.error("Title zaroor bharein!");
+      return;
+    }
+    if (!pdfUrl.trim()) {
+      toast.error("PDF URL zaroor daalo!");
+      return;
+    }
+    try {
+      await addLesson.mutateAsync({
+        classNum,
+        subject,
+        lesson: {
+          title: title.trim(),
+          description: description.trim(),
+          pdfUrl: pdfUrl.trim(),
+          videoUrl: "",
+          notes: "",
+        },
+      });
+      toast.success("PDF Lesson add ho gaya! 📄");
+      setTitle("");
+      setDescription("");
+      setPdfUrl("");
+    } catch {
+      toast.error("PDF Lesson add nahi ho saka. Dobara try karein.");
+    }
+  };
+
+  // ── Video Submit ──
+  const handleVideoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) {
+      toast.error("Title zaroor bharein!");
+      return;
+    }
+    if (!videoUrl.trim()) {
+      toast.error("Video URL zaroor daalo!");
       return;
     }
     try {
@@ -207,129 +284,660 @@ function LessonForm({
           title: title.trim(),
           description: description.trim(),
           videoUrl: videoUrl.trim(),
-          pdfUrl: pdfUrl.trim(),
-          notes: notes.trim(),
+          pdfUrl: "",
+          notes: "",
         },
       });
-      toast.success("Lesson add ho gaya! 🎉");
+      toast.success("Video Lesson add ho gaya! 🎥");
       setTitle("");
       setDescription("");
       setVideoUrl("");
-      setPdfUrl("");
+    } catch {
+      toast.error("Video Lesson add nahi ho saka. Dobara try karein.");
+    }
+  };
+
+  // ── Notes Submit ──
+  const handleNotesSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) {
+      toast.error("Title zaroor bharein!");
+      return;
+    }
+    if (!notes.trim()) {
+      toast.error("Notes ka content zaroor likhein!");
+      return;
+    }
+    try {
+      await addLesson.mutateAsync({
+        classNum,
+        subject,
+        lesson: {
+          title: title.trim(),
+          description: description.trim(),
+          notes: notes.trim(),
+          pdfUrl: "",
+          videoUrl: "",
+        },
+      });
+      toast.success("Notes Lesson add ho gaya! 📝");
+      setTitle("");
+      setDescription("");
       setNotes("");
     } catch {
-      toast.error("Lesson add nahi ho saka. Dobara try karein.");
+      toast.error("Notes Lesson add nahi ho saka. Dobara try karein.");
     }
+  };
+
+  // ── Poll Submit ──
+  const handlePollSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pollQuestion.trim()) {
+      toast.error("Poll question zaroor likhein!");
+      return;
+    }
+    const filledOptions = pollOptions.filter((o) => o.value.trim());
+    if (filledOptions.length < 2) {
+      toast.error("Kam se kam 2 options zaroor bharein!");
+      return;
+    }
+    try {
+      await addPoll.mutateAsync({
+        classNum,
+        subject,
+        pollData: {
+          question: pollQuestion.trim(),
+          options: pollOptions
+            .map((o) => o.value.trim())
+            .filter((v) => v.length > 0),
+        },
+      });
+      toast.success("Poll add ho gaya! 📊");
+      setPollQuestion("");
+      setPollNextId(2);
+      setPollOptions([
+        { id: 0, value: "" },
+        { id: 1, value: "" },
+      ]);
+    } catch {
+      toast.error("Poll add nahi ho saka. Dobara try karein.");
+    }
+  };
+
+  // ── Quiz Submit ──
+  const handleQuizSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quizQuestion.trim()) {
+      toast.error("Question zaroor bharein!");
+      return;
+    }
+    const filledOptions = quizOptions.filter((o) => o.trim());
+    if (filledOptions.length < 2) {
+      toast.error("Kam se kam 2 options zaroor bharein!");
+      return;
+    }
+    try {
+      await addQuizQuestion.mutateAsync({
+        classNum,
+        subject,
+        question: {
+          question: quizQuestion.trim(),
+          options: quizOptions.map((o) => o.trim()),
+          correctIndex: BigInt(correctIndex),
+        },
+      });
+      toast.success("Question add ho gaya! 🧠");
+      setQuizQuestion("");
+      setQuizOptions(["", "", "", ""]);
+      setCorrectIndex(0);
+    } catch {
+      toast.error("Question add nahi ho saka. Dobara try karein.");
+    }
+  };
+
+  // Poll option helpers
+  const addPollOption = () => {
+    if (pollOptions.length < 6) {
+      setPollOptions((prev) => [...prev, { id: pollNextId, value: "" }]);
+      setPollNextId((n) => n + 1);
+    }
+  };
+  const removePollOption = (id: number) => {
+    if (pollOptions.length > 2) {
+      setPollOptions((prev) => prev.filter((o) => o.id !== id));
+    }
+  };
+  const updatePollOption = (id: number, value: string) => {
+    setPollOptions((prev) =>
+      prev.map((o) => (o.id === id ? { ...o, value } : o)),
+    );
+  };
+
+  // Quiz option helper
+  const handleQuizOptionChange = (idx: number, value: string) => {
+    setQuizOptions((prev) => {
+      const updated = [...prev];
+      updated[idx] = value;
+      return updated;
+    });
   };
 
   return (
     <div className="space-y-8">
-      {/* Add Lesson Form */}
-      <Card className="rounded-2xl border-border shadow-sm">
-        <CardHeader className="pb-4">
+      {/* Content Type Tabs */}
+      <Card className="rounded-2xl border-border shadow-sm overflow-hidden">
+        <CardHeader className="pb-3 bg-gradient-to-r from-primary/5 to-accent/5 border-b border-border">
           <CardTitle className="font-display font-bold text-lg flex items-center gap-2">
             <Plus className="w-5 h-5 text-primary" />
-            Lesson Add Karein
+            Content Add Karein
           </CardTitle>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Neeche se content type chuniye aur content add karein
+          </p>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="lesson-title" className="text-sm font-semibold">
-                Lesson Title *
-              </Label>
-              <Input
-                id="lesson-title"
-                data-ocid="admin.lesson.title.input"
-                placeholder="e.g. Chapter 1 — Integers ka Introduction"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="rounded-xl"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label
-                htmlFor="lesson-description"
-                className="text-sm font-semibold"
+        <CardContent className="pt-5 pb-6">
+          <Tabs defaultValue="pdf">
+            {/* Content type selector tabs */}
+            <TabsList className="w-full mb-6 rounded-2xl h-auto flex-wrap gap-1 bg-secondary/80 p-1.5">
+              <TabsTrigger
+                value="pdf"
+                data-ocid="admin.content.pdf.tab"
+                className="flex-1 min-w-[80px] rounded-xl data-[state=active]:bg-blue-600 data-[state=active]:text-white font-semibold text-xs py-2.5 gap-1.5"
               >
-                Description
-              </Label>
-              <Textarea
-                id="lesson-description"
-                data-ocid="admin.lesson.description.textarea"
-                placeholder="Is lesson mein kya sikhenge..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="rounded-xl resize-none"
-                rows={3}
-              />
-            </div>
+                <FileText className="w-3.5 h-3.5" />
+                PDF
+              </TabsTrigger>
+              <TabsTrigger
+                value="video"
+                data-ocid="admin.content.video.tab"
+                className="flex-1 min-w-[80px] rounded-xl data-[state=active]:bg-red-600 data-[state=active]:text-white font-semibold text-xs py-2.5 gap-1.5"
+              >
+                <Video className="w-3.5 h-3.5" />
+                Video
+              </TabsTrigger>
+              <TabsTrigger
+                value="notes"
+                data-ocid="admin.content.notes.tab"
+                className="flex-1 min-w-[80px] rounded-xl data-[state=active]:bg-green-600 data-[state=active]:text-white font-semibold text-xs py-2.5 gap-1.5"
+              >
+                <StickyNote className="w-3.5 h-3.5" />
+                Notes
+              </TabsTrigger>
+              <TabsTrigger
+                value="poll"
+                data-ocid="admin.content.poll.tab"
+                className="flex-1 min-w-[80px] rounded-xl data-[state=active]:bg-violet-600 data-[state=active]:text-white font-semibold text-xs py-2.5 gap-1.5"
+              >
+                <BarChart2 className="w-3.5 h-3.5" />
+                Poll
+              </TabsTrigger>
+              <TabsTrigger
+                value="quiz"
+                data-ocid="admin.content.quiz.tab"
+                className="flex-1 min-w-[80px] rounded-xl data-[state=active]:bg-amber-600 data-[state=active]:text-white font-semibold text-xs py-2.5 gap-1.5"
+              >
+                <BrainCircuit className="w-3.5 h-3.5" />
+                Quiz
+              </TabsTrigger>
+            </TabsList>
 
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="lesson-video" className="text-sm font-semibold">
-                  YouTube Video URL
-                </Label>
-                <Input
-                  id="lesson-video"
-                  data-ocid="admin.lesson.video_url.input"
-                  placeholder="https://youtube.com/embed/..."
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  className="rounded-xl"
+            {/* ── PDF Tab ── */}
+            <TabsContent value="pdf">
+              <form onSubmit={handlePdfSubmit} className="space-y-4">
+                {/* Common fields */}
+                <CommonLessonFields
+                  title={title}
+                  setTitle={setTitle}
+                  description={description}
+                  setDescription={setDescription}
+                  titleOcid="admin.lesson.pdf.title.input"
+                  descOcid="admin.lesson.pdf.description.textarea"
                 />
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="lesson-pdf" className="text-sm font-semibold">
-                  PDF Notes URL
-                </Label>
-                <Input
-                  id="lesson-pdf"
-                  data-ocid="admin.lesson.pdf_url.input"
-                  placeholder="https://drive.google.com/..."
-                  value={pdfUrl}
-                  onChange={(e) => setPdfUrl(e.target.value)}
-                  className="rounded-xl"
+                {/* PDF specific */}
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="lesson-pdf-url"
+                    className="text-sm font-semibold text-blue-700 dark:text-blue-400"
+                  >
+                    📄 PDF ka URL daalo ya paste karo
+                  </Label>
+                  <Input
+                    id="lesson-pdf-url"
+                    data-ocid="admin.lesson.pdf.input"
+                    placeholder="https://drive.google.com/... ya koi bhi PDF link"
+                    value={pdfUrl}
+                    onChange={(e) => setPdfUrl(e.target.value)}
+                    className="rounded-xl border-blue-200 focus:border-blue-500 focus:ring-blue-200"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Google Drive, Dropbox, ya kisi bhi hosting ka PDF link paste
+                    karein
+                  </p>
+                </div>
+
+                <Button
+                  type="submit"
+                  data-ocid="admin.lesson.pdf.submit_button"
+                  disabled={addLesson.isPending}
+                  className="w-full h-11 rounded-xl font-bold bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {addLesson.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <FileText className="w-4 h-4 mr-2" />
+                  )}
+                  PDF Lesson Save Karein
+                </Button>
+              </form>
+            </TabsContent>
+
+            {/* ── Video Tab ── */}
+            <TabsContent value="video">
+              <form onSubmit={handleVideoSubmit} className="space-y-4">
+                {/* Common fields */}
+                <CommonLessonFields
+                  title={title}
+                  setTitle={setTitle}
+                  description={description}
+                  setDescription={setDescription}
+                  titleOcid="admin.lesson.video.title.input"
+                  descOcid="admin.lesson.video.description.textarea"
                 />
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="lesson-notes" className="text-sm font-semibold">
-                Text Notes
-              </Label>
-              <Textarea
-                id="lesson-notes"
-                data-ocid="admin.lesson.notes.textarea"
-                placeholder="Key points, formulas, important topics..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="rounded-xl resize-none font-mono text-sm"
-                rows={5}
-              />
-            </div>
+                {/* Video specific */}
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="lesson-video-url"
+                    className="text-sm font-semibold text-red-700 dark:text-red-400"
+                  >
+                    🎥 YouTube ya Video URL daalo ya paste karo
+                  </Label>
+                  <Input
+                    id="lesson-video-url"
+                    data-ocid="admin.lesson.video.input"
+                    placeholder="https://youtube.com/embed/..."
+                    value={videoUrl}
+                    onChange={(e) => setVideoUrl(e.target.value)}
+                    className="rounded-xl border-red-200 focus:border-red-500 focus:ring-red-200"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    YouTube embed URL use karein — example:
+                    https://youtube.com/embed/VIDEO_ID
+                  </p>
+                </div>
 
-            <Button
-              type="submit"
-              data-ocid="admin.lesson.submit_button"
-              disabled={addLesson.isPending}
-              className="w-full h-11 rounded-xl font-bold"
-            >
-              {addLesson.isPending ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4 mr-2" />
+                <Button
+                  type="submit"
+                  data-ocid="admin.lesson.video.submit_button"
+                  disabled={addLesson.isPending}
+                  className="w-full h-11 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white"
+                >
+                  {addLesson.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Video className="w-4 h-4 mr-2" />
+                  )}
+                  Video Lesson Save Karein
+                </Button>
+              </form>
+            </TabsContent>
+
+            {/* ── Notes Tab ── */}
+            <TabsContent value="notes">
+              <form onSubmit={handleNotesSubmit} className="space-y-4">
+                {/* Common fields */}
+                <CommonLessonFields
+                  title={title}
+                  setTitle={setTitle}
+                  description={description}
+                  setDescription={setDescription}
+                  titleOcid="admin.lesson.notes.title.input"
+                  descOcid="admin.lesson.notes.description.textarea"
+                />
+
+                {/* Notes specific */}
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="lesson-notes-content"
+                    className="text-sm font-semibold text-green-700 dark:text-green-400"
+                  >
+                    📝 Notes yahan type karo ya paste karo
+                  </Label>
+                  <Textarea
+                    id="lesson-notes-content"
+                    data-ocid="admin.lesson.notes.textarea"
+                    placeholder="Key points, formulas, important topics... aap yahan seedha likh sakte hain ya copy-paste kar sakte hain"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="rounded-xl resize-y font-mono text-sm border-green-200 focus:border-green-500 focus:ring-green-200 min-h-[200px]"
+                    rows={10}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Direct type karein ya khin se copy karke yahan paste karein
+                    (Ctrl+V)
+                  </p>
+                </div>
+
+                <Button
+                  type="submit"
+                  data-ocid="admin.lesson.notes.submit_button"
+                  disabled={addLesson.isPending}
+                  className="w-full h-11 rounded-xl font-bold bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {addLesson.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <StickyNote className="w-4 h-4 mr-2" />
+                  )}
+                  Notes Lesson Save Karein
+                </Button>
+              </form>
+            </TabsContent>
+
+            {/* ── Poll Tab ── */}
+            <TabsContent value="poll">
+              <form onSubmit={handlePollSubmit} className="space-y-5">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="poll-question"
+                    className="text-sm font-semibold text-violet-700 dark:text-violet-400"
+                  >
+                    📊 Poll Question likhein
+                  </Label>
+                  <Textarea
+                    id="poll-question"
+                    data-ocid="admin.poll.question.textarea"
+                    placeholder="Apna poll question yahan likhein..."
+                    value={pollQuestion}
+                    onChange={(e) => setPollQuestion(e.target.value)}
+                    className="rounded-xl resize-none border-violet-200 focus:border-violet-500 focus:ring-violet-200"
+                    rows={3}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">
+                    Poll Options ({pollOptions.length}/6)
+                  </Label>
+                  <div className="space-y-2">
+                    {pollOptions.map((opt, idx) => (
+                      <div key={opt.id} className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-muted-foreground w-6 text-center shrink-0">
+                          {idx + 1}.
+                        </span>
+                        <Input
+                          data-ocid={`admin.poll.option.input.${idx + 1}`}
+                          placeholder={`Option ${idx + 1}...`}
+                          value={opt.value}
+                          onChange={(e) =>
+                            updatePollOption(opt.id, e.target.value)
+                          }
+                          className="rounded-xl flex-1 border-violet-200 focus:border-violet-500"
+                        />
+                        {pollOptions.length > 2 && (
+                          <button
+                            type="button"
+                            data-ocid={`admin.poll.option.delete_button.${idx + 1}`}
+                            onClick={() => removePollOption(opt.id)}
+                            className="text-destructive/60 hover:text-destructive transition-colors p-1 rounded-lg"
+                            aria-label="Option hatao"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {pollOptions.length < 6 && (
+                    <Button
+                      type="button"
+                      data-ocid="admin.poll.option.primary_button"
+                      onClick={addPollOption}
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl border-violet-300 text-violet-700 hover:bg-violet-50 font-semibold"
+                    >
+                      <Plus className="w-4 h-4 mr-1.5" />
+                      Option Add Karein
+                    </Button>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
+                  data-ocid="admin.poll.submit_button"
+                  disabled={addPoll.isPending}
+                  className="w-full h-11 rounded-xl font-bold bg-violet-600 hover:bg-violet-700 text-white"
+                >
+                  {addPoll.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <BarChart2 className="w-4 h-4 mr-2" />
+                  )}
+                  Poll Save Karein
+                </Button>
+              </form>
+
+              {/* Existing Polls */}
+              {(pollsLoading || (polls && polls.length > 0)) && (
+                <div className="mt-6 pt-6 border-t border-border">
+                  <h4 className="font-bold text-sm text-foreground mb-3 flex items-center gap-2">
+                    <BarChart2 className="w-4 h-4 text-violet-600" />
+                    Existing Polls
+                    {polls && (
+                      <Badge variant="secondary" className="ml-1">
+                        {polls.length}
+                      </Badge>
+                    )}
+                  </h4>
+                  {pollsLoading ? (
+                    <div
+                      data-ocid="admin.polls.loading_state"
+                      className="flex items-center gap-2 text-muted-foreground py-4"
+                    >
+                      <Loader2 className="w-4 h-4 animate-spin text-violet-600" />
+                      <span className="text-sm">
+                        Polls load ho rahe hain...
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {polls?.map((poll, i) => (
+                        <div
+                          key={`${poll.question.slice(0, 20)}-${i}`}
+                          data-ocid={`admin.poll.item.${i + 1}`}
+                          className="bg-violet-50 border border-violet-200 rounded-xl p-3"
+                        >
+                          <p className="text-sm font-semibold text-violet-900 mb-2">
+                            {poll.question}
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {poll.options.map((opt, optIdx) => (
+                              <span
+                                key={`opt-${opt}-${poll.question.slice(0, 10)}-${optIdx}`}
+                                className="text-xs px-2.5 py-1 rounded-lg bg-violet-100 text-violet-700 font-medium"
+                              >
+                                {optIdx + 1}. {opt}{" "}
+                                <span className="text-violet-400">
+                                  ({Number(poll.votes[optIdx] ?? 0)} votes)
+                                </span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
-              Lesson Add Karein
-            </Button>
-          </form>
+            </TabsContent>
+
+            {/* ── Quiz Tab ── */}
+            <TabsContent value="quiz">
+              <form onSubmit={handleQuizSubmit} className="space-y-5">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="quiz-question"
+                    className="text-sm font-semibold text-amber-700 dark:text-amber-400"
+                  >
+                    🧠 Quiz Question likhein
+                  </Label>
+                  <Textarea
+                    id="quiz-question"
+                    data-ocid="admin.quiz.question.textarea"
+                    placeholder="Aapka question yahan likhein..."
+                    value={quizQuestion}
+                    onChange={(e) => setQuizQuestion(e.target.value)}
+                    className="rounded-xl resize-none border-amber-200 focus:border-amber-500 focus:ring-amber-200"
+                    rows={3}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">Options</Label>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {OPTIONS_LABELS.map((label, idx) => (
+                      <div key={label} className="space-y-1.5">
+                        <Label
+                          htmlFor={`quiz-option-${label.toLowerCase()}`}
+                          className="text-xs font-medium text-muted-foreground"
+                        >
+                          Option {label}
+                        </Label>
+                        <Input
+                          id={`quiz-option-${label.toLowerCase()}`}
+                          data-ocid={`admin.quiz.option_${label.toLowerCase()}.input`}
+                          placeholder={`Option ${label}...`}
+                          value={quizOptions[idx]}
+                          onChange={(e) =>
+                            handleQuizOptionChange(idx, e.target.value)
+                          }
+                          className="rounded-xl border-amber-200 focus:border-amber-500"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Sahi Jawab</Label>
+                  <div className="flex gap-3 flex-wrap">
+                    {OPTIONS_LABELS.map((label, idx) => (
+                      <label
+                        key={label}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 cursor-pointer transition-all text-sm font-medium ${
+                          correctIndex === idx
+                            ? "border-amber-500 bg-amber-50 text-amber-700"
+                            : "border-border bg-card text-muted-foreground hover:border-amber-300"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="correctAnswer"
+                          value={idx}
+                          checked={correctIndex === idx}
+                          onChange={() => setCorrectIndex(idx)}
+                          className="w-4 h-4 accent-amber-500"
+                          data-ocid={`admin.quiz.correct.radio.${idx + 1}`}
+                        />
+                        Option {label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  data-ocid="admin.quiz.submit_button"
+                  disabled={addQuizQuestion.isPending}
+                  className="w-full h-11 rounded-xl font-bold bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  {addQuizQuestion.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <BrainCircuit className="w-4 h-4 mr-2" />
+                  )}
+                  Question Add Karein
+                </Button>
+              </form>
+
+              {/* Existing Quiz Questions */}
+              {(quizLoading || (quizQuestions && quizQuestions.length > 0)) && (
+                <div className="mt-6 pt-6 border-t border-border">
+                  <h4 className="font-bold text-sm text-foreground mb-3 flex items-center gap-2">
+                    <BrainCircuit className="w-4 h-4 text-amber-600" />
+                    Existing Questions
+                    {quizQuestions && (
+                      <Badge variant="secondary" className="ml-1">
+                        {quizQuestions.length}
+                      </Badge>
+                    )}
+                  </h4>
+                  {quizLoading ? (
+                    <div
+                      data-ocid="admin.quiz.loading_state"
+                      className="flex items-center gap-2 text-muted-foreground py-4"
+                    >
+                      <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
+                      <span className="text-sm">
+                        Questions load ho rahe hain...
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {quizQuestions?.map((q, i) => (
+                        <motion.div
+                          key={`${q.question.slice(0, 20)}-${i}`}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.05 }}
+                          className="bg-card border border-border rounded-2xl p-4"
+                          data-ocid={`admin.quiz.item.${i + 1}`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <Badge
+                              variant="secondary"
+                              className="text-xs shrink-0 mt-0.5"
+                            >
+                              Q{i + 1}
+                            </Badge>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground mb-2 leading-snug">
+                                {q.question}
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {q.options.map((opt, optIdx) => (
+                                  <span
+                                    key={opt}
+                                    className={`text-xs px-2.5 py-1 rounded-lg font-medium ${
+                                      optIdx === Number(q.correctIndex)
+                                        ? "bg-green-100 text-green-700 border border-green-200"
+                                        : "bg-secondary text-muted-foreground"
+                                    }`}
+                                  >
+                                    {OPTIONS_LABELS[optIdx]}: {opt}
+                                    {optIdx === Number(q.correctIndex) && " ✓"}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
-      {/* Existing Lessons */}
+      {/* Existing Lessons List */}
       <div>
         <h3 className="font-display font-bold text-lg text-foreground mb-4 flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-primary" />
@@ -360,7 +968,7 @@ function LessonForm({
             <p className="text-sm font-medium">
               Is class/subject ke liye abhi koi lesson nahi hai.
             </p>
-            <p className="text-xs mt-1">Upar form se add karein!</p>
+            <p className="text-xs mt-1">Upar se content add karein!</p>
           </div>
         )}
 
@@ -377,7 +985,7 @@ function LessonForm({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <Badge variant="secondary" className="text-xs">
                         Lesson {i + 1}
                       </Badge>
@@ -389,6 +997,11 @@ function LessonForm({
                       {lesson.pdfUrl && (
                         <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-200">
                           📄 PDF
+                        </Badge>
+                      )}
+                      {lesson.notes && (
+                        <Badge className="text-xs bg-green-100 text-green-700 border-green-200">
+                          📝 Notes
                         </Badge>
                       )}
                     </div>
@@ -411,238 +1024,60 @@ function LessonForm({
   );
 }
 
-// ─── Quiz Form ─────────────────────────────────────────────────────────────────
+// ─── Shared Common Lesson Fields Component ─────────────────────────────────────
 
-function QuizForm({
-  classNum,
-  subject,
+function CommonLessonFields({
+  title,
+  setTitle,
+  description,
+  setDescription,
+  titleOcid,
+  descOcid,
 }: {
-  classNum: number;
-  subject: string;
+  title: string;
+  setTitle: (v: string) => void;
+  description: string;
+  setDescription: (v: string) => void;
+  titleOcid: string;
+  descOcid: string;
 }) {
-  const [question, setQuestion] = useState("");
-  const [options, setOptions] = useState(["", "", "", ""]);
-  const [correctIndex, setCorrectIndex] = useState<number>(0);
-
-  const addQuizQuestion = useAddQuizQuestion();
-  const { data: quizQuestions, isLoading: quizLoading } = useGetQuizQuestions(
-    classNum,
-    subject,
-  );
-
-  const handleOptionChange = (idx: number, value: string) => {
-    setOptions((prev) => {
-      const updated = [...prev];
-      updated[idx] = value;
-      return updated;
-    });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!question.trim()) {
-      toast.error("Question zaroor bharein!");
-      return;
-    }
-    const filledOptions = options.filter((o) => o.trim());
-    if (filledOptions.length < 2) {
-      toast.error("Kam se kam 2 options zaroor bharein!");
-      return;
-    }
-
-    try {
-      await addQuizQuestion.mutateAsync({
-        classNum,
-        subject,
-        question: {
-          question: question.trim(),
-          options: options.map((o) => o.trim()),
-          correctIndex: BigInt(correctIndex),
-        },
-      });
-      toast.success("Question add ho gaya! 🧠");
-      setQuestion("");
-      setOptions(["", "", "", ""]);
-      setCorrectIndex(0);
-    } catch {
-      toast.error("Question add nahi ho saka. Dobara try karein.");
-    }
-  };
-
   return (
-    <div className="space-y-8">
-      {/* Add Quiz Question Form */}
-      <Card className="rounded-2xl border-border shadow-sm">
-        <CardHeader className="pb-4">
-          <CardTitle className="font-display font-bold text-lg flex items-center gap-2">
-            <Plus className="w-5 h-5 text-primary" />
-            Question Add Karein
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="quiz-question" className="text-sm font-semibold">
-                Question *
-              </Label>
-              <Textarea
-                id="quiz-question"
-                data-ocid="admin.quiz.question.textarea"
-                placeholder="Aapka question yahan likhein..."
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                className="rounded-xl resize-none"
-                rows={3}
-                required
-              />
-            </div>
-
-            <div className="space-y-3">
-              <Label className="text-sm font-semibold">Options</Label>
-              <div className="grid sm:grid-cols-2 gap-3">
-                {OPTIONS_LABELS.map((label, idx) => (
-                  <div key={label} className="space-y-1.5">
-                    <Label
-                      htmlFor={`quiz-option-${label.toLowerCase()}`}
-                      className="text-xs font-medium text-muted-foreground"
-                    >
-                      Option {label}
-                    </Label>
-                    <Input
-                      id={`quiz-option-${label.toLowerCase()}`}
-                      data-ocid={`admin.quiz.option_${label.toLowerCase()}.input`}
-                      placeholder={`Option ${label}...`}
-                      value={options[idx]}
-                      onChange={(e) => handleOptionChange(idx, e.target.value)}
-                      className="rounded-xl"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold">Sahi Jawab</Label>
-              <div className="flex gap-3 flex-wrap">
-                {OPTIONS_LABELS.map((label, idx) => (
-                  <label
-                    key={label}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 cursor-pointer transition-all text-sm font-medium ${
-                      correctIndex === idx
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border bg-card text-muted-foreground hover:border-primary/40"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="correctAnswer"
-                      value={idx}
-                      checked={correctIndex === idx}
-                      onChange={() => setCorrectIndex(idx)}
-                      className="w-4 h-4 accent-primary"
-                    />
-                    Option {label}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              data-ocid="admin.quiz.submit_button"
-              disabled={addQuizQuestion.isPending}
-              className="w-full h-11 rounded-xl font-bold"
-            >
-              {addQuizQuestion.isPending ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4 mr-2" />
-              )}
-              Question Add Karein
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* Existing Questions */}
-      <div>
-        <h3 className="font-display font-bold text-lg text-foreground mb-4 flex items-center gap-2">
-          <BrainCircuit className="w-5 h-5 text-primary" />
-          Existing Questions
-          {quizQuestions && (
-            <Badge variant="secondary" className="ml-1">
-              {quizQuestions.length}
-            </Badge>
-          )}
-        </h3>
-
-        {quizLoading && (
-          <div
-            data-ocid="admin.quiz.loading_state"
-            className="flex items-center gap-3 text-muted-foreground py-8"
-          >
-            <Loader2 className="w-5 h-5 animate-spin text-primary" />
-            <span>Questions load ho rahe hain...</span>
-          </div>
-        )}
-
-        {!quizLoading && (!quizQuestions || quizQuestions.length === 0) && (
-          <div
-            data-ocid="admin.quiz.empty_state"
-            className="text-center py-12 text-muted-foreground border-2 border-dashed border-border rounded-2xl"
-          >
-            <BrainCircuit className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm font-medium">
-              Is class/subject ke liye abhi koi question nahi hai.
-            </p>
-          </div>
-        )}
-
-        {quizQuestions && quizQuestions.length > 0 && (
-          <div className="space-y-3">
-            {quizQuestions.map((q, i) => (
-              <motion.div
-                key={`${q.question.slice(0, 20)}-${i}`}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="bg-card border border-border rounded-2xl p-4"
-                data-ocid={`admin.quiz.item.${i + 1}`}
-              >
-                <div className="flex items-start gap-3">
-                  <Badge
-                    variant="secondary"
-                    className="text-xs shrink-0 mt-0.5"
-                  >
-                    Q{i + 1}
-                  </Badge>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground mb-2 leading-snug">
-                      {q.question}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {q.options.map((opt, optIdx) => (
-                        <span
-                          key={opt}
-                          className={`text-xs px-2.5 py-1 rounded-lg font-medium ${
-                            optIdx === Number(q.correctIndex)
-                              ? "bg-green-100 text-green-700 border border-green-200"
-                              : "bg-secondary text-muted-foreground"
-                          }`}
-                        >
-                          {OPTIONS_LABELS[optIdx]}: {opt}
-                          {optIdx === Number(q.correctIndex) && " ✓"}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
+    <>
+      <div className="space-y-2">
+        <Label htmlFor={titleOcid} className="text-sm font-semibold">
+          Lesson Title <span className="text-destructive">*</span>
+        </Label>
+        <Input
+          id={titleOcid}
+          data-ocid={titleOcid}
+          placeholder="e.g. Chapter 1 — Integers ka Introduction"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="rounded-xl"
+          required
+        />
       </div>
-    </div>
+
+      <div className="space-y-2">
+        <Label htmlFor={descOcid} className="text-sm font-semibold">
+          Description{" "}
+          <span className="text-muted-foreground text-xs font-normal">
+            (optional)
+          </span>
+        </Label>
+        <Textarea
+          id={descOcid}
+          data-ocid={descOcid}
+          placeholder="Is lesson mein kya sikhenge..."
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          className="rounded-xl resize-none"
+          rows={2}
+        />
+      </div>
+
+      <div className="border-t border-dashed border-border pt-4" />
+    </>
   );
 }
 
@@ -930,7 +1365,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             Content Manager
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Lessons, quiz questions aur student doubts manage karein
+            PDF, Video, Notes, Poll, Quiz aur student doubts manage karein
           </p>
         </div>
 
@@ -1015,15 +1450,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               className="flex-1 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-white font-semibold text-xs sm:text-sm"
             >
               <BookOpen className="w-4 h-4 mr-1.5" />
-              Lessons & Notes
-            </TabsTrigger>
-            <TabsTrigger
-              value="quiz"
-              data-ocid="admin.quiz.tab"
-              className="flex-1 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-white font-semibold text-xs sm:text-sm"
-            >
-              <BrainCircuit className="w-4 h-4 mr-1.5" />
-              Quiz Questions
+              Lessons &amp; Notes
             </TabsTrigger>
             <TabsTrigger
               value="doubts"
@@ -1037,10 +1464,6 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
           <TabsContent value="lessons">
             <LessonForm classNum={selectedClass} subject={selectedSubject} />
-          </TabsContent>
-
-          <TabsContent value="quiz">
-            <QuizForm classNum={selectedClass} subject={selectedSubject} />
           </TabsContent>
 
           <TabsContent value="doubts">

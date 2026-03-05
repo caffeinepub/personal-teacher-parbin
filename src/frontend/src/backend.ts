@@ -103,6 +103,13 @@ export interface Lesson {
     notes: string;
     videoUrl: string;
 }
+export interface Poll {
+    question: string;
+    subject: string;
+    votes: Array<bigint>;
+    options: Array<string>;
+    classNum: bigint;
+}
 export interface UserProfile {
     name: string;
     classNum: bigint;
@@ -120,6 +127,10 @@ export enum UserRole {
 export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     addLesson(classNum: bigint, subject: string, lesson: Lesson): Promise<void>;
+    addPoll(classNum: bigint, subject: string, pollData: {
+        question: string;
+        options: Array<string>;
+    }): Promise<void>;
     addQuizQuestion(classNum: bigint, subject: string, question: QuizQuestion): Promise<void>;
     answerDoubt(index: bigint, answer: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
@@ -130,6 +141,7 @@ export interface backendInterface {
     getCompletedLessons(): Promise<Array<[bigint, string, string]>>;
     getDoubtsByClassSubject(classNum: bigint, subject: string): Promise<Array<Doubt>>;
     getLessons(classNum: bigint, subject: string): Promise<Array<Lesson>>;
+    getPolls(classNum: bigint, subject: string): Promise<Array<Poll>>;
     getQuizQuestions(classNum: bigint, subject: string): Promise<Array<QuizQuestion>>;
     getQuizScores(): Promise<Array<[bigint, string, bigint]>>;
     getSubjects(classNum: bigint): Promise<Array<string>>;
@@ -139,6 +151,7 @@ export interface backendInterface {
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     submitDoubt(studentName: string, classNum: bigint, subject: string, question: string): Promise<void>;
     submitQuizScore(classNum: bigint, subject: string, score: bigint): Promise<void>;
+    votePoll(classNum: bigint, subject: string, pollIndex: bigint, optionIndex: bigint): Promise<void>;
 }
 import type { Doubt as _Doubt, UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -168,6 +181,23 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.addLesson(arg0, arg1, arg2);
+            return result;
+        }
+    }
+    async addPoll(arg0: bigint, arg1: string, arg2: {
+        question: string;
+        options: Array<string>;
+    }): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addPoll(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addPoll(arg0, arg1, arg2);
             return result;
         }
     }
@@ -311,6 +341,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getPolls(arg0: bigint, arg1: string): Promise<Array<Poll>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getPolls(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getPolls(arg0, arg1);
+            return result;
+        }
+    }
     async getQuizQuestions(arg0: bigint, arg1: string): Promise<Array<QuizQuestion>> {
         if (this.processError) {
             try {
@@ -434,6 +478,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.submitQuizScore(arg0, arg1, arg2);
+            return result;
+        }
+    }
+    async votePoll(arg0: bigint, arg1: string, arg2: bigint, arg3: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.votePoll(arg0, arg1, arg2, arg3);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.votePoll(arg0, arg1, arg2, arg3);
             return result;
         }
     }

@@ -24,6 +24,13 @@ export interface Lesson {
   'notes' : string,
   'videoUrl' : string,
 }
+export interface Poll {
+  'question' : string,
+  'subject' : string,
+  'votes' : Array<bigint>,
+  'options' : Array<string>,
+  'classNum' : bigint,
+}
 export interface QuizQuestion {
   'question' : string,
   'correctIndex' : bigint,
@@ -36,6 +43,10 @@ export type UserRole = { 'admin' : null } |
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addLesson' : ActorMethod<[bigint, string, Lesson], undefined>,
+  'addPoll' : ActorMethod<
+    [bigint, string, { 'question' : string, 'options' : Array<string> }],
+    undefined
+  >,
   'addQuizQuestion' : ActorMethod<[bigint, string, QuizQuestion], undefined>,
   'answerDoubt' : ActorMethod<[bigint, string], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
@@ -46,6 +57,7 @@ export interface _SERVICE {
   'getCompletedLessons' : ActorMethod<[], Array<[bigint, string, string]>>,
   'getDoubtsByClassSubject' : ActorMethod<[bigint, string], Array<Doubt>>,
   'getLessons' : ActorMethod<[bigint, string], Array<Lesson>>,
+  'getPolls' : ActorMethod<[bigint, string], Array<Poll>>,
   'getQuizQuestions' : ActorMethod<[bigint, string], Array<QuizQuestion>>,
   'getQuizScores' : ActorMethod<[], Array<[bigint, string, bigint]>>,
   'getSubjects' : ActorMethod<[bigint], Array<string>>,
@@ -55,6 +67,7 @@ export interface _SERVICE {
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'submitDoubt' : ActorMethod<[string, bigint, string, string], undefined>,
   'submitQuizScore' : ActorMethod<[bigint, string, bigint], undefined>,
+  'votePoll' : ActorMethod<[bigint, string, bigint, bigint], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

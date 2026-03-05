@@ -5,13 +5,14 @@ import Text "mo:core/Text";
 import Nat "mo:core/Nat";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
-import Iter "mo:core/Iter";
 import Order "mo:core/Order";
+import Iter "mo:core/Iter";
+import Migration "migration";
 
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
 
-
+(with migration = Migration.run)
 actor {
   type Lesson = {
     title : Text;
@@ -45,6 +46,14 @@ actor {
     classNum : Nat;
   };
 
+  type Poll = {
+    question : Text;
+    options : [Text];
+    classNum : Nat;
+    subject : Text;
+    votes : [Nat];
+  };
+
   // Persistent data structures
   type PersistentLesson = List.List<Lesson>;
   type PersistentQuiz = List.List<QuizQuestion>;
@@ -74,6 +83,9 @@ actor {
 
   // Persistent Map for user profiles
   let userProfiles = Map.empty<Principal, UserProfile>();
+
+  // Persistent Map for polls
+  let pollStorePersistent = Map.empty<NatTextTuple.Tuple, List.List<Poll>>();
 
   // Authorization system
   let accessControlState = AccessControl.initState();
@@ -325,5 +337,76 @@ actor {
       Runtime.trap("Unauthorized: Only admins can get unanswered doubts");
     };
     doubtsStorePersistent.toArray().filter(func(doubt) { doubt.answer == null });
+  };
+
+  // Poll Management
+
+  // Add poll (admin only)
+  public shared ({ caller }) func addPoll(classNum : Nat, subject : Text, pollData : { question : Text; options : [Text] }) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can add polls");
+    };
+
+    let newPoll : Poll = {
+      question = pollData.question;
+      options = pollData.options;
+      classNum;
+      subject;
+      votes = Array.tabulate(pollData.options.size(), func(_) { 0 });
+    };
+
+    let key = (classNum, subject);
+    let currentPolls = switch (pollStorePersistent.get(key)) {
+      case (?polls) { polls };
+      case (null) { List.empty<Poll>() };
+    };
+    currentPolls.add(newPoll);
+    pollStorePersistent.add(key, currentPolls);
+  };
+
+  // Get polls for a class+subject (public access)
+  public query ({ caller }) func getPolls(classNum : Nat, subject : Text) : async [Poll] {
+    switch (pollStorePersistent.get((classNum, subject))) {
+      case (?polls) { polls.toArray() };
+      case (null) { [] };
+    };
+  };
+
+  // Vote on a poll option (user only)
+  public shared ({ caller }) func votePoll(classNum : Nat, subject : Text, pollIndex : Nat, optionIndex : Nat) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can vote");
+    };
+
+    let key = (classNum, subject);
+    switch (pollStorePersistent.get(key)) {
+      case (?polls) {
+        let pollsArray = polls.toArray();
+        if (pollIndex >= pollsArray.size()) {
+          Runtime.trap("Poll index out of bounds");
+        };
+
+        let poll = pollsArray[pollIndex];
+        if (optionIndex >= poll.options.size()) {
+          Runtime.trap("Option index out of bounds");
+        };
+
+        let updatedVotes = Array.tabulate(
+          poll.votes.size(),
+          func(i) {
+            if (i == optionIndex) { poll.votes[i] + 1 } else { poll.votes[i] };
+          },
+        );
+
+        let updatedPoll : Poll = { poll with votes = updatedVotes };
+        let updatedPolls = Array.tabulate(
+          pollsArray.size(),
+          func(i) { if (i == pollIndex) { updatedPoll } else { pollsArray[i] } },
+        );
+
+        pollStorePersistent.add(key, List.fromArray<Poll>(updatedPolls));
+      };
+      case (null) { Runtime.trap("No polls found for this class and subject") };
+    };
   };
 };

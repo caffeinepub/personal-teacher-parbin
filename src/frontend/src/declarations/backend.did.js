@@ -36,10 +36,26 @@ export const UserProfile = IDL.Record({
   'name' : IDL.Text,
   'classNum' : IDL.Nat,
 });
+export const Poll = IDL.Record({
+  'question' : IDL.Text,
+  'subject' : IDL.Text,
+  'votes' : IDL.Vec(IDL.Nat),
+  'options' : IDL.Vec(IDL.Text),
+  'classNum' : IDL.Nat,
+});
 
 export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'addLesson' : IDL.Func([IDL.Nat, IDL.Text, Lesson], [], []),
+  'addPoll' : IDL.Func(
+      [
+        IDL.Nat,
+        IDL.Text,
+        IDL.Record({ 'question' : IDL.Text, 'options' : IDL.Vec(IDL.Text) }),
+      ],
+      [],
+      [],
+    ),
   'addQuizQuestion' : IDL.Func([IDL.Nat, IDL.Text, QuizQuestion], [], []),
   'answerDoubt' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
@@ -58,6 +74,7 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'getLessons' : IDL.Func([IDL.Nat, IDL.Text], [IDL.Vec(Lesson)], ['query']),
+  'getPolls' : IDL.Func([IDL.Nat, IDL.Text], [IDL.Vec(Poll)], ['query']),
   'getQuizQuestions' : IDL.Func(
       [IDL.Nat, IDL.Text],
       [IDL.Vec(QuizQuestion)],
@@ -79,6 +96,7 @@ export const idlService = IDL.Service({
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'submitDoubt' : IDL.Func([IDL.Text, IDL.Nat, IDL.Text, IDL.Text], [], []),
   'submitQuizScore' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat], [], []),
+  'votePoll' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat], [], []),
 });
 
 export const idlInitArgs = [];
@@ -109,10 +127,26 @@ export const idlFactory = ({ IDL }) => {
     'classNum' : IDL.Nat,
   });
   const UserProfile = IDL.Record({ 'name' : IDL.Text, 'classNum' : IDL.Nat });
+  const Poll = IDL.Record({
+    'question' : IDL.Text,
+    'subject' : IDL.Text,
+    'votes' : IDL.Vec(IDL.Nat),
+    'options' : IDL.Vec(IDL.Text),
+    'classNum' : IDL.Nat,
+  });
   
   return IDL.Service({
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'addLesson' : IDL.Func([IDL.Nat, IDL.Text, Lesson], [], []),
+    'addPoll' : IDL.Func(
+        [
+          IDL.Nat,
+          IDL.Text,
+          IDL.Record({ 'question' : IDL.Text, 'options' : IDL.Vec(IDL.Text) }),
+        ],
+        [],
+        [],
+      ),
     'addQuizQuestion' : IDL.Func([IDL.Nat, IDL.Text, QuizQuestion], [], []),
     'answerDoubt' : IDL.Func([IDL.Nat, IDL.Text], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
@@ -131,6 +165,7 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'getLessons' : IDL.Func([IDL.Nat, IDL.Text], [IDL.Vec(Lesson)], ['query']),
+    'getPolls' : IDL.Func([IDL.Nat, IDL.Text], [IDL.Vec(Poll)], ['query']),
     'getQuizQuestions' : IDL.Func(
         [IDL.Nat, IDL.Text],
         [IDL.Vec(QuizQuestion)],
@@ -152,6 +187,7 @@ export const idlFactory = ({ IDL }) => {
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'submitDoubt' : IDL.Func([IDL.Text, IDL.Nat, IDL.Text, IDL.Text], [], []),
     'submitQuizScore' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat], [], []),
+    'votePoll' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat], [], []),
   });
 };
 

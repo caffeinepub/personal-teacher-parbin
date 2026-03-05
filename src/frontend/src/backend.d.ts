@@ -21,6 +21,13 @@ export interface Lesson {
     notes: string;
     videoUrl: string;
 }
+export interface Poll {
+    question: string;
+    subject: string;
+    votes: Array<bigint>;
+    options: Array<string>;
+    classNum: bigint;
+}
 export interface UserProfile {
     name: string;
     classNum: bigint;
@@ -37,6 +44,10 @@ export enum UserRole {
 }
 export interface backendInterface {
     addLesson(classNum: bigint, subject: string, lesson: Lesson): Promise<void>;
+    addPoll(classNum: bigint, subject: string, pollData: {
+        question: string;
+        options: Array<string>;
+    }): Promise<void>;
     addQuizQuestion(classNum: bigint, subject: string, question: QuizQuestion): Promise<void>;
     answerDoubt(index: bigint, answer: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
@@ -47,6 +58,7 @@ export interface backendInterface {
     getCompletedLessons(): Promise<Array<[bigint, string, string]>>;
     getDoubtsByClassSubject(classNum: bigint, subject: string): Promise<Array<Doubt>>;
     getLessons(classNum: bigint, subject: string): Promise<Array<Lesson>>;
+    getPolls(classNum: bigint, subject: string): Promise<Array<Poll>>;
     getQuizQuestions(classNum: bigint, subject: string): Promise<Array<QuizQuestion>>;
     getQuizScores(): Promise<Array<[bigint, string, bigint]>>;
     getSubjects(classNum: bigint): Promise<Array<string>>;
@@ -56,4 +68,5 @@ export interface backendInterface {
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     submitDoubt(studentName: string, classNum: bigint, subject: string, question: string): Promise<void>;
     submitQuizScore(classNum: bigint, subject: string, score: bigint): Promise<void>;
+    votePoll(classNum: bigint, subject: string, pollIndex: bigint, optionIndex: bigint): Promise<void>;
 }
