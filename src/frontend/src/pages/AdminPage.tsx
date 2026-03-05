@@ -22,6 +22,8 @@ import {
   BookOpen,
   BrainCircuit,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   HelpCircle,
   Key,
   Loader2,
@@ -82,8 +84,9 @@ function AdminLoginScreen() {
               Admin Login
             </CardTitle>
             <CardDescription className="text-muted-foreground text-sm leading-relaxed">
-              Sirf authorized admins hi is panel ko access kar sakte hain.
-              Internet Identity se login karein.
+              Sirf <strong className="text-foreground">Umesh Singh</strong>{" "}
+              (authorized admin) hi is panel ko access kar sakte hain. Internet
+              Identity se login karein.
             </CardDescription>
           </CardHeader>
           <CardContent className="px-8 pb-8 space-y-4">
@@ -256,8 +259,37 @@ function AdminTokenScreen({
 
 // ─── Access Denied Screen ──────────────────────────────────────────────────────
 
-function AccessDeniedScreen() {
+function AccessDeniedScreen({
+  onClaimSuccess,
+}: {
+  onClaimSuccess?: () => void;
+}) {
   const { clear } = useInternetIdentity();
+  const [claimOpen, setClaimOpen] = useState(false);
+  const [claimToken, setClaimToken] = useState("");
+  const [claimError, setClaimError] = useState("");
+  const [claimSuccess, setClaimSuccess] = useState(false);
+  const initMutation = useInitializeWithSecret();
+
+  const handleClaim = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setClaimError("");
+    setClaimSuccess(false);
+    if (!claimToken.trim()) {
+      setClaimError("Token field khali nahi hona chahiye.");
+      return;
+    }
+    try {
+      await initMutation.mutateAsync(claimToken.trim());
+      setClaimSuccess(true);
+      toast.success("Admin access mil gaya! 🎉");
+      onClaimSuccess?.();
+    } catch {
+      setClaimError(
+        "Token galat hai ya aap pehle se registered hain. Support se contact karein.",
+      );
+    }
+  };
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
@@ -277,11 +309,125 @@ function AccessDeniedScreen() {
               Access Denied
             </CardTitle>
             <CardDescription className="text-muted-foreground text-sm leading-relaxed">
-              Aapka account admin nahi hai. Sirf authorized teachers/admins hi
-              content manage kar sakte hain.
+              Yeh admin panel sirf{" "}
+              <strong className="text-foreground">Umesh Singh</strong> ke liye
+              hai. Agar aap Umesh Singh hain aur admin token jaante hain, to
+              neeche enter karein.
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-8 pb-8">
+          <CardContent className="px-8 pb-8 space-y-4">
+            {/* Claim Admin Collapsible */}
+            <div className="border border-border rounded-2xl overflow-hidden">
+              <button
+                type="button"
+                data-ocid="admin.claim.toggle"
+                onClick={() => setClaimOpen((v) => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-secondary hover:bg-secondary/80 transition-colors text-sm font-semibold text-foreground"
+              >
+                <span className="flex items-center gap-2">
+                  <Key className="w-4 h-4 text-primary" />
+                  Kya aap Umesh Singh hain?
+                </span>
+                {claimOpen ? (
+                  <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                )}
+              </button>
+
+              <AnimatePresence>
+                {claimOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.22 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-4 py-4 bg-card space-y-3">
+                      {claimSuccess ? (
+                        <div
+                          data-ocid="admin.claim.success_state"
+                          className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700"
+                        >
+                          <ShieldCheck className="w-4 h-4 shrink-0" />
+                          <span>
+                            Admin access mil gaya! Page reload ho raha hai...
+                          </span>
+                        </div>
+                      ) : (
+                        <form onSubmit={handleClaim} className="space-y-3">
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor="claim-token"
+                              className="text-xs font-semibold text-foreground"
+                            >
+                              Admin Token
+                            </Label>
+                            <Input
+                              id="claim-token"
+                              data-ocid="admin.claim.token.input"
+                              type="password"
+                              placeholder="••••••••••••"
+                              value={claimToken}
+                              onChange={(e) => {
+                                setClaimToken(e.target.value);
+                                setClaimError("");
+                              }}
+                              className="rounded-xl h-10 text-sm"
+                              autoComplete="current-password"
+                            />
+                          </div>
+
+                          {claimError && (
+                            <div
+                              data-ocid="admin.claim.error_state"
+                              className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-xl text-xs text-destructive"
+                            >
+                              <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                              <span>{claimError}</span>
+                            </div>
+                          )}
+
+                          {initMutation.isPending && (
+                            <div
+                              data-ocid="admin.claim.loading_state"
+                              className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-xl text-xs text-primary"
+                            >
+                              <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                              <span>Verify ho raha hai...</span>
+                            </div>
+                          )}
+
+                          <Button
+                            type="submit"
+                            data-ocid="admin.claim.submit_button"
+                            disabled={
+                              initMutation.isPending || !claimToken.trim()
+                            }
+                            size="sm"
+                            className="w-full rounded-xl font-bold"
+                          >
+                            {initMutation.isPending ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                                Verify ho raha hai...
+                              </>
+                            ) : (
+                              <>
+                                <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
+                                Admin Claim Karein
+                              </>
+                            )}
+                          </Button>
+                        </form>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             <Button
               data-ocid="admin.logout.button"
               onClick={clear}
@@ -1252,7 +1398,7 @@ export default function AdminPage() {
 
   // Registered but not admin
   if (isAdmin === false) {
-    return <AccessDeniedScreen />;
+    return <AccessDeniedScreen onClaimSuccess={refetchIsAdmin} />;
   }
 
   return <AdminDashboard />;
