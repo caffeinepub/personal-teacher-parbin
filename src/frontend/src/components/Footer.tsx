@@ -6,23 +6,28 @@ export default function Footer() {
     typeof window !== "undefined" ? window.location.hostname : "";
 
   return (
-    <footer className="border-t border-border bg-card py-6 mt-auto">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground text-center">
-          © {currentYear} Personal Teacher: Parbin. Sabhi rights reserved.
+    <footer className="border-t border-border bg-card py-8 mt-auto">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col items-center gap-4">
+        <p className="text-3xl sm:text-4xl font-black tracking-wide text-primary text-center uppercase">
+          MADE BY PARBIN DIHURI
         </p>
-        <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-          Built with <Heart className="w-3.5 h-3.5 text-primary fill-primary" />{" "}
-          using{" "}
-          <a
-            href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(hostname)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:underline font-medium"
-          >
-            caffeine.ai
-          </a>
-        </p>
+        <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-3">
+          <p className="text-sm text-muted-foreground text-center">
+            © {currentYear} Personal Teacher: Parbin. Sabhi rights reserved.
+          </p>
+          <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+            Built with{" "}
+            <Heart className="w-3.5 h-3.5 text-primary fill-primary" /> using{" "}
+            <a
+              href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(hostname)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline font-medium"
+            >
+              caffeine.ai
+            </a>
+          </p>
+        </div>
       </div>
     </footer>
   );

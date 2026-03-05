@@ -13,6 +13,8 @@ export const Lesson = IDL.Record({
   'description' : IDL.Text,
   'pdfUrl' : IDL.Text,
   'notes' : IDL.Text,
+  'longVideoUrl' : IDL.Text,
+  'shortVideoUrl' : IDL.Text,
   'videoUrl' : IDL.Text,
 });
 export const QuizQuestion = IDL.Record({
@@ -107,6 +109,8 @@ export const idlFactory = ({ IDL }) => {
     'description' : IDL.Text,
     'pdfUrl' : IDL.Text,
     'notes' : IDL.Text,
+    'longVideoUrl' : IDL.Text,
+    'shortVideoUrl' : IDL.Text,
     'videoUrl' : IDL.Text,
   });
   const QuizQuestion = IDL.Record({

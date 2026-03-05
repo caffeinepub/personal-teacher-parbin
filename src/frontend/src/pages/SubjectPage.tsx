@@ -39,6 +39,8 @@ const FALLBACK_LESSONS: Lesson[] = [
     notes:
       "📝 Key Points:\n• Sabse pehle fundamentals yaad karein\n• Practice problems zaroor karo\n• Notes ko bar bar review karo\n• Teacher se doubt poochne mein dar mat lagao",
     videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    shortVideoUrl: "",
+    longVideoUrl: "",
     pdfUrl: "",
   },
   {
@@ -48,6 +50,8 @@ const FALLBACK_LESSONS: Lesson[] = [
     notes:
       "📝 Important Topics:\n• Topic A: Definition aur explanation\n• Topic B: Real-world examples\n• Topic C: Practice exercises\n• Revision tips aur mnemonics",
     videoUrl: "",
+    shortVideoUrl: "",
+    longVideoUrl: "",
     pdfUrl: "",
   },
   {
@@ -57,6 +61,8 @@ const FALLBACK_LESSONS: Lesson[] = [
     notes:
       "📝 Exam Tips:\n• Important formulas yaad karein\n• Previous year questions practice karein\n• Diagrams banao\n• Time management sikhein",
     videoUrl: "",
+    shortVideoUrl: "",
+    longVideoUrl: "",
     pdfUrl: "",
   },
 ];
@@ -110,7 +116,18 @@ function LessonCard({
   onComplete: (title: string) => void;
 }) {
   const [notesOpen, setNotesOpen] = useState(false);
+  const [activeVideo, setActiveVideo] = useState<"short" | "long">("long");
   const isCompleted = completedSet.has(lesson.title);
+
+  // Determine available videos
+  const hasShort = !!lesson.shortVideoUrl;
+  const hasLong = !!(lesson.longVideoUrl || lesson.videoUrl);
+  const hasBoth = hasShort && hasLong;
+  const effectiveLongUrl = lesson.longVideoUrl || lesson.videoUrl;
+
+  // Decide what to show
+  const showShort = hasShort && (!hasLong || activeVideo === "short");
+  const showLong = hasLong && (!hasShort || activeVideo === "long");
 
   return (
     <motion.div
@@ -119,23 +136,75 @@ function LessonCard({
       transition={{ delay: index * 0.08 }}
       className="bg-card rounded-2xl border border-border overflow-hidden"
     >
-      {/* Video placeholder */}
-      <div className="relative bg-foreground/5 aspect-video flex items-center justify-center group">
-        {lesson.videoUrl ? (
-          <iframe
-            src={lesson.videoUrl}
-            className="w-full h-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            title={lesson.title}
-          />
-        ) : (
+      {/* Video section */}
+      {hasShort || hasLong ? (
+        <div>
+          {/* Toggle buttons when both present */}
+          {hasBoth && (
+            <div className="flex gap-0 border-b border-border">
+              <button
+                type="button"
+                data-ocid="lesson.video.short.toggle"
+                onClick={() => setActiveVideo("short")}
+                className={`flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+                  activeVideo === "short"
+                    ? "bg-pink-600 text-white"
+                    : "bg-secondary text-muted-foreground hover:bg-pink-50 hover:text-pink-700"
+                }`}
+              >
+                📱 Short Video
+              </button>
+              <button
+                type="button"
+                data-ocid="lesson.video.long.toggle"
+                onClick={() => setActiveVideo("long")}
+                className={`flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+                  activeVideo === "long"
+                    ? "bg-red-600 text-white"
+                    : "bg-secondary text-muted-foreground hover:bg-red-50 hover:text-red-700"
+                }`}
+              >
+                🎥 Long Video
+              </button>
+            </div>
+          )}
+
+          {/* Short Video — portrait (9:16) */}
+          {showShort && (
+            <div className="relative bg-foreground/5 flex items-center justify-center">
+              <div className="w-full max-w-[280px] mx-auto aspect-[9/16]">
+                <iframe
+                  src={lesson.shortVideoUrl}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title={`${lesson.title} - Short Video`}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Long Video — landscape (16:9) */}
+          {showLong && (
+            <div className="relative bg-foreground/5 aspect-video flex items-center justify-center">
+              <iframe
+                src={effectiveLongUrl}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                title={`${lesson.title} - Long Video`}
+              />
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="relative bg-foreground/5 aspect-video flex items-center justify-center">
           <div className="flex flex-col items-center gap-3 text-muted-foreground">
             <PlayCircle className="w-14 h-14 opacity-40" />
             <span className="text-sm">Video coming soon...</span>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="p-5">

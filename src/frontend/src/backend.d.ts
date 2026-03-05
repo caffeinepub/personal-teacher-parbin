@@ -19,6 +19,8 @@ export interface Lesson {
     description: string;
     pdfUrl: string;
     notes: string;
+    longVideoUrl: string;
+    shortVideoUrl: string;
     videoUrl: string;
 }
 export interface Poll {

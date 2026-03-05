@@ -3,21 +3,23 @@ import Array "mo:core/Array";
 import List "mo:core/List";
 import Text "mo:core/Text";
 import Nat "mo:core/Nat";
+import Iter "mo:core/Iter";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 import Order "mo:core/Order";
-import Iter "mo:core/Iter";
 import Migration "migration";
-
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
 
+// Use migration module for data upgrades
 (with migration = Migration.run)
 actor {
   type Lesson = {
     title : Text;
     description : Text;
     videoUrl : Text;
+    shortVideoUrl : Text; // New field for short videos
+    longVideoUrl : Text; // New field for long videos
     pdfUrl : Text;
     notes : Text;
   };
@@ -37,8 +39,8 @@ actor {
   };
 
   type Progress = {
-    completedLessons : [(Nat, Text, Text)]; // (class, subject, lesson title)
-    quizScores : [(Nat, Text, Nat)]; // (class, subject, score)
+    completedLessons : [(Nat, Text, Text)];
+    quizScores : [(Nat, Text, Nat)];
   };
 
   public type UserProfile = {

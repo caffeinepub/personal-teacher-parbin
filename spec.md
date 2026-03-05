@@ -1,39 +1,38 @@
 # Personal Teacher: Parbin
 
 ## Current State
-
-Admin panel mein lessons add karne ka ek single form hai jisme title, description, video URL, PDF URL, aur text notes ke fields hain. Quiz questions ke liye alag section hai. Poll feature bilkul nahi hai. Lesson add karne mein problem aa rahi hai kyunki form complex hai aur content types ek saath mixed hain.
+- Full-stack educational app with Class 1-12, subjects, lessons, quiz, doubts, polls
+- Admin panel password-protected with "PARBINDIHURI"
+- Backend: Motoko with Lesson type having `videoUrl`, `shortVideoUrl`, `longVideoUrl`, `pdfUrl`, `notes`, `title`, `description`
+- backend.d.ts has `shortVideoUrl` and `longVideoUrl` in Lesson interface
+- Admin panel Video tab has only one `videoUrl` field — missing shortVideoUrl and longVideoUrl inputs
+- Content add bug: addLesson calls in PDF/Video/Notes tabs don't pass `shortVideoUrl` and `longVideoUrl` fields, causing backend type mismatch
+- SubjectPage LessonCard shows only `lesson.videoUrl` — doesn't use shortVideoUrl or longVideoUrl
 
 ## Requested Changes (Diff)
 
 ### Add
-- Admin panel ke lesson form mein **5 alag content type tabs**:
-  1. **PDF** — URL field (link paste karne ka option, type karne ka bhi)
-  2. **Video** — YouTube/video URL field (link paste ya type)
-  3. **Notes** — Rich textarea (type + paste dono supported, large area)
-  4. **Poll** — Poll question + multiple options (min 2, max 6) add karne ka form
-  5. **Quiz** — Quiz question + 4 options + correct answer selector (existing quiz form yahan shift)
-- Backend mein `Poll` type aur `addPoll`, `getPolls` APIs
-- Admin dashboard mein Polls ka ek naya dedicated section (content type tabs ke andar)
-- Student side mein polls dekh kar vote karne ki functionality
+- Admin Video tab: two URL inputs — "Short Video URL" (YouTube Shorts/vertical) and "Long Video URL" (full lecture/landscape)
+- SubjectPage LessonCard: show short video in portrait (9:16) ratio box, long video in landscape (16:9) box; if both present show toggle between them
 
 ### Modify
-- Existing `LessonForm` ko restructure karo: title + description pehle, phir **content tabs** (PDF / Video / Notes / Poll / Quiz) jahan se ek ya zyada content types add ho sakein
-- Lesson add button har content tab ke andar ho — ek click mein sirf us type ka content save ho
-- Admin tabs mein "Poll" badge add karo
+- Admin PDF/Video/Notes lesson addLesson calls: include all required fields (`shortVideoUrl: ""`, `longVideoUrl: ""`) to fix content-add bug
+- Admin Video tab: replace single videoUrl field with shortVideoUrl + longVideoUrl state and inputs; submit both to addLesson
+- SubjectPage LessonCard: smart video display — check shortVideoUrl and longVideoUrl, show appropriate aspect ratio, toggle if both exist; fallback to videoUrl for backward compat
 
 ### Remove
-- Purana combined lesson form (jisme sab fields ek saath the) replace ho jaayega naye tabbed system se
+- Single `videoUrl` input from Admin Video tab (keep backward compat in rendering by checking `lesson.videoUrl` as fallback)
 
 ## Implementation Plan
-
-1. **Backend**: `Poll` type define karo (`question: Text`, `options: [Text]`, `classNum: Nat`, `subject: Text`). `pollStore` add karo. `addPoll(classNum, subject, poll)` aur `getPolls(classNum, subject)` APIs add karo (admin-only add, public get).
-2. **Frontend - AdminPage**: 
-   - `LessonForm` ko refactor karo: title + description common fields, phir 5 tab buttons (PDF, Video, Notes, Poll, Quiz)
-   - PDF tab: URL input + save button
-   - Video tab: URL input + save button  
-   - Notes tab: large textarea (typing + paste) + save button
-   - Poll tab: poll question input + dynamic options (Add/Remove option) + save button
-   - Quiz tab: existing quiz form yahan move karo
-3. **Frontend - SubjectPage (student view)**: Polls section add karo jahan students poll options dekh ke vote kar sakein
-4. **Backend.d.ts** update karo Poll types ke saath
+1. Fix AdminPage.tsx:
+   a. Add `shortVideoUrl` and `longVideoUrl` state variables
+   b. Update Video tab form: two labeled URL inputs for short video and long video
+   c. Update handleVideoSubmit to submit both shortVideoUrl and longVideoUrl
+   d. Fix PDF/Notes submit handlers: add `shortVideoUrl: ""`, `longVideoUrl: ""` to lesson object
+   e. Update existing lessons list badges: show "Short Video" and "Long Video" badges
+2. Fix SubjectPage.tsx LessonCard:
+   a. Portrait box (aspect-[9/16]) for shortVideoUrl
+   b. Landscape box (aspect-video) for longVideoUrl or videoUrl fallback
+   c. If both present: show toggle button between Short and Long video
+3. Fix FALLBACK_LESSONS to include shortVideoUrl and longVideoUrl fields
+4. Build and validate

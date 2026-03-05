@@ -31,13 +31,16 @@ import {
   Plus,
   Send,
   ShieldCheck,
+  Smartphone,
   StickyNote,
   Trash2,
+  UserCheck,
   Video,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   useAddLesson,
   useAddPoll,
@@ -196,7 +199,8 @@ function LessonForm({
   const [pdfUrl, setPdfUrl] = useState("");
 
   // Video tab state
-  const [videoUrl, setVideoUrl] = useState("");
+  const [shortVideoUrl, setShortVideoUrl] = useState("");
+  const [longVideoUrl, setLongVideoUrl] = useState("");
 
   // Notes tab state
   const [notes, setNotes] = useState("");
@@ -253,6 +257,8 @@ function LessonForm({
           description: description.trim(),
           pdfUrl: pdfUrl.trim(),
           videoUrl: "",
+          shortVideoUrl: "",
+          longVideoUrl: "",
           notes: "",
         },
       });
@@ -272,8 +278,8 @@ function LessonForm({
       toast.error("Title zaroor bharein!");
       return;
     }
-    if (!videoUrl.trim()) {
-      toast.error("Video URL zaroor daalo!");
+    if (!shortVideoUrl.trim() && !longVideoUrl.trim()) {
+      toast.error("Kam se kam ek video URL zaroor daalo!");
       return;
     }
     try {
@@ -283,7 +289,9 @@ function LessonForm({
         lesson: {
           title: title.trim(),
           description: description.trim(),
-          videoUrl: videoUrl.trim(),
+          videoUrl: longVideoUrl.trim() || shortVideoUrl.trim(),
+          shortVideoUrl: shortVideoUrl.trim(),
+          longVideoUrl: longVideoUrl.trim(),
           pdfUrl: "",
           notes: "",
         },
@@ -291,7 +299,8 @@ function LessonForm({
       toast.success("Video Lesson add ho gaya! 🎥");
       setTitle("");
       setDescription("");
-      setVideoUrl("");
+      setShortVideoUrl("");
+      setLongVideoUrl("");
     } catch {
       toast.error("Video Lesson add nahi ho saka. Dobara try karein.");
     }
@@ -318,6 +327,8 @@ function LessonForm({
           notes: notes.trim(),
           pdfUrl: "",
           videoUrl: "",
+          shortVideoUrl: "",
+          longVideoUrl: "",
         },
       });
       toast.success("Notes Lesson add ho gaya! 📝");
@@ -545,26 +556,57 @@ function LessonForm({
                   descOcid="admin.lesson.video.description.textarea"
                 />
 
-                {/* Video specific */}
-                <div className="space-y-2">
+                {/* Short Video */}
+                <div className="space-y-2 p-4 rounded-2xl bg-pink-50/60 border border-pink-200">
                   <Label
-                    htmlFor="lesson-video-url"
-                    className="text-sm font-semibold text-red-700 dark:text-red-400"
+                    htmlFor="lesson-short-video-url"
+                    className="text-sm font-bold text-pink-700 flex items-center gap-2"
                   >
-                    🎥 YouTube ya Video URL daalo ya paste karo
+                    <Smartphone className="w-4 h-4" />📱 Short Video URL
+                    (YouTube Shorts / Reels)
                   </Label>
                   <Input
-                    id="lesson-video-url"
-                    data-ocid="admin.lesson.video.input"
-                    placeholder="https://youtube.com/embed/..."
-                    value={videoUrl}
-                    onChange={(e) => setVideoUrl(e.target.value)}
-                    className="rounded-xl border-red-200 focus:border-red-500 focus:ring-red-200"
+                    id="lesson-short-video-url"
+                    data-ocid="admin.lesson.video.short.input"
+                    placeholder="https://youtube.com/shorts/... ya https://youtube.com/embed/..."
+                    value={shortVideoUrl}
+                    onChange={(e) => setShortVideoUrl(e.target.value)}
+                    className="rounded-xl border-pink-300 focus:border-pink-500 bg-white"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    YouTube embed URL use karein — example:
-                    https://youtube.com/embed/VIDEO_ID
+                  <p className="text-xs text-pink-600">
+                    Chhoti videos — 1 se 5 minute, vertical format (9:16)
                   </p>
+                </div>
+
+                {/* Long Video */}
+                <div className="space-y-2 p-4 rounded-2xl bg-red-50/60 border border-red-200">
+                  <Label
+                    htmlFor="lesson-long-video-url"
+                    className="text-sm font-bold text-red-700 flex items-center gap-2"
+                  >
+                    <Video className="w-4 h-4" />🎥 Long Video URL (Full
+                    Lecture)
+                  </Label>
+                  <Input
+                    id="lesson-long-video-url"
+                    data-ocid="admin.lesson.video.long.input"
+                    placeholder="https://youtube.com/embed/VIDEO_ID"
+                    value={longVideoUrl}
+                    onChange={(e) => setLongVideoUrl(e.target.value)}
+                    className="rounded-xl border-red-300 focus:border-red-500 bg-white"
+                  />
+                  <p className="text-xs text-red-600">
+                    Poori class ya lecture — koi bhi length, landscape format
+                    (16:9)
+                  </p>
+                </div>
+
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+                  💡 Dono optional hain — par kam se kam ek URL zaroor bharein.
+                  YouTube embed URL use karein:{" "}
+                  <span className="font-mono bg-amber-100 px-1 rounded">
+                    youtube.com/embed/VIDEO_ID
+                  </span>
                 </div>
 
                 <Button
@@ -989,11 +1031,23 @@ function LessonForm({
                       <Badge variant="secondary" className="text-xs">
                         Lesson {i + 1}
                       </Badge>
-                      {lesson.videoUrl && (
-                        <Badge className="text-xs bg-red-100 text-red-700 border-red-200">
-                          🎥 Video
+                      {lesson.shortVideoUrl && (
+                        <Badge className="text-xs bg-pink-100 text-pink-700 border-pink-200">
+                          📱 Short Video
                         </Badge>
                       )}
+                      {lesson.longVideoUrl && (
+                        <Badge className="text-xs bg-red-100 text-red-700 border-red-200">
+                          🎥 Long Video
+                        </Badge>
+                      )}
+                      {!lesson.shortVideoUrl &&
+                        !lesson.longVideoUrl &&
+                        lesson.videoUrl && (
+                          <Badge className="text-xs bg-red-100 text-red-700 border-red-200">
+                            🎥 Video
+                          </Badge>
+                        )}
                       {lesson.pdfUrl && (
                         <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-200">
                           📄 PDF
@@ -1345,6 +1399,9 @@ function AnsweredDoubtsCollapsible({
 function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [selectedClass, setSelectedClass] = useState(6);
   const [selectedSubject, setSelectedSubject] = useState("Maths");
+  const { login, loginStatus, identity, isLoggingIn } = useInternetIdentity();
+
+  const isLoggedIn = !!identity;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
@@ -1352,7 +1409,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       <motion.div
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-start justify-between gap-4 mb-8"
+        className="flex items-start justify-between gap-4 mb-6"
       >
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -1370,6 +1427,15 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
+          {isLoggedIn && (
+            <Badge
+              data-ocid="admin.ii.login.success_state"
+              className="bg-green-100 text-green-700 border border-green-300 rounded-xl px-3 py-1 text-xs font-semibold hidden sm:flex items-center gap-1.5"
+            >
+              <UserCheck className="w-3.5 h-3.5" />
+              Logged In
+            </Badge>
+          )}
           <Button
             data-ocid="admin.logout.button"
             onClick={onLogout}
@@ -1382,6 +1448,75 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           </Button>
         </div>
       </motion.div>
+
+      {/* Internet Identity Login Banner */}
+      <AnimatePresence>
+        {!isLoggedIn && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3 }}
+            className="mb-6 p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-4"
+          >
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+                <p className="font-bold text-sm text-amber-800">
+                  Internet Identity Login Zaroor Hai
+                </p>
+              </div>
+              <p className="text-xs text-amber-700 leading-relaxed">
+                Content add karne ke liye Internet Identity se login karein —
+                bina login ke content save nahi hoga.
+              </p>
+            </div>
+            <Button
+              data-ocid="admin.ii.login_button"
+              onClick={() => login()}
+              disabled={isLoggingIn}
+              className="shrink-0 rounded-xl font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-md"
+              size="sm"
+            >
+              {isLoggingIn ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Login ho raha hai...
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-4 h-4 mr-2" />
+                  Internet Identity Se Login Karein
+                </>
+              )}
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Login success notice */}
+      <AnimatePresence>
+        {isLoggedIn && loginStatus === "success" && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3 }}
+            data-ocid="admin.ii.login.success_state"
+            className="mb-6 p-3 bg-green-50 border border-green-300 rounded-2xl flex items-center gap-3"
+          >
+            <UserCheck className="w-5 h-5 text-green-600 shrink-0" />
+            <div>
+              <p className="text-sm font-bold text-green-800">
+                Login Ho Gaya! ✅
+              </p>
+              <p className="text-xs text-green-700">
+                Ab aap content add kar sakte hain.
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Class & Subject Selectors */}
       <motion.div
